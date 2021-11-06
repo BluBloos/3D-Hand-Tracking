@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import imageio
 import numpy as np
 import time
+import math
 
 dir = 'RHD_published_v2' 
 set = 'training'
@@ -115,4 +116,142 @@ end_time = time.time()
 print("Total elapsed time for single hand parse =", end_time - start_time, "s")
 print("Amount of valid training examples = ", valid_training_examples / total_training_examples * 100, "%")
 
+# Another unit test, going to need to generate a heatmap for the estimation of a keypoint!!
+# What is the format of the heatmap that we care about?
 
+# According to the paper: https://arxiv.org/pdf/1903.00812.pdf
+# The ground truth heat-map is defined as a 2D Gaussian with
+# a standard deviation of 4 px centered on the ground truth 2D
+# joint location
+
+# how exactly do we generate a gaussian function again??
+# f(x) = a * e ^ ( -(x-b)^2 / 2c^2 )
+# a is the height of the curves peak (for us this will be the pixel intensity)
+# b is the pos of the center of the peak (this will be the uv coordinate)
+# c is the standard deviation (controls the width of the gaussian = 4 px)
+
+# This function will take in a uv coordinate and generate the corresponding heatmap!!
+def HeatmapFromUV(uv):
+    heatmap = [] 
+    
+    # gaussian parameters
+    a = 255
+    c = 4
+    b_x = uv[0]
+    b_y = uv[1] 
+
+    # thinking a 3D gaussian is just like a radial type ting. Like you rotate the 2D guassian and that's how you 
+    # get the 3D one :)
+    # we love hardcoding things :)
+    for x in range(320):
+        new_row = []
+        for y in range(320):
+            R = (x - b_x)**2 + (y - b_y)**2
+            val = a * math.exp( -(R) / 2 / c**2 ) 
+            new_row.append( val )
+        heatmap.append(new_row)    
+    
+    np_heatmap = np.array(heatmap)
+    plt.imshow(np_heatmap)
+    plt.show()
+
+HeatmapFromUV(np.array([ 100, 100 ]))
+
+
+
+
+'''
+# OKAY, ... NOW we try our hands at building this model...
+
+
+#NOTE: Following along with -> https://www.tensorflow.org/tutorials/quickstart/advanced
+
+
+import tensorflow as tf
+print("TensorFlow version:", tf.__version__)
+
+from tensorflow.keras.layers import Dense, Flatten, Conv2D
+from tensorflow.keras import Model
+
+
+#NOTE: Make the training and test datasets...
+train_ds = tf.data.Dataset.from_tensor_slices(
+    (x_train, y_train)).shuffle(10000).batch(32)
+
+test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
+
+
+class MyModel(Model):
+    def __init__(self):
+        super(MyModel, self).__init__()
+        self.conv1 = Conv2D(32, 3, activation='relu')
+        self.flatten = Flatten()
+        self.d1 = Dense(128, activation='relu')
+        self.d2 = Dense(10)
+
+    def call(self, x):
+        x = self.conv1(x)
+        x = self.flatten(x)
+        x = self.d1(x)
+        return self.d2(x)
+
+# create the model instance
+model = MyModel()
+
+#NOTE: optimizer and loss we will leave for now...
+loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+optimizer = tf.keras.optimizers.Adam()
+
+train_loss = tf.keras.metrics.Mean(name='train_loss')
+train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+
+test_loss = tf.keras.metrics.Mean(name='test_loss')
+test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+
+# going to use Gradient tape to train the model! :)
+@tf.function
+def train_step(images, labels):
+  with tf.GradientTape() as tape:
+    # training=True is only needed if there are layers with different
+    # behavior during training versus inference (e.g. Dropout).
+    predictions = model(images, training=True)
+    loss = loss_object(labels, predictions)
+  gradients = tape.gradient(loss, model.trainable_variables)
+  optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+  train_loss(loss)
+  train_accuracy(labels, predictions)
+
+@tf.function
+def test_step(images, labels):
+  # training=False is only needed if there are layers with different
+  # behavior during training versus inference (e.g. Dropout).
+  predictions = model(images, training=False)
+  t_loss = loss_object(labels, predictions)
+
+  test_loss(t_loss)
+  test_accuracy(labels, predictions)
+
+EPOCHS = 5 # sure...
+
+for epoch in range(EPOCHS):
+  # Reset the metrics at the start of the next epoch
+  train_loss.reset_states()
+  train_accuracy.reset_states()
+  test_loss.reset_states()
+  test_accuracy.reset_states()
+
+  for images, labels in train_ds:
+    train_step(images, labels)
+
+  for test_images, test_labels in test_ds:
+    test_step(test_images, test_labels)
+
+  print(
+    f'Epoch {epoch + 1}, '
+    f'Loss: {train_loss.result()}, '
+    f'Accuracy: {train_accuracy.result() * 100}, '
+    f'Test Loss: {test_loss.result()}, '
+    f'Test Accuracy: {test_accuracy.result() * 100}'
+  )
+  '''
