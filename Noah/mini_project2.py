@@ -25,6 +25,7 @@ import pickle
 import matplotlib.pyplot as plt
 import imageio
 import numpy as np
+import time
 
 dir = 'RHD_published_v2' 
 set = 'training'
@@ -44,9 +45,9 @@ for sample_id, anno in anno_all.items():
     print("kp_visible", kp_visible)
 
     # Visualize data
-    #plt.imshow(image)
-    #plt.plot(kp_coord_uv[kp_visible, 0], kp_coord_uv[kp_visible, 1], 'ro')
-    #plt.show()
+    # plt.imshow(image)
+    # plt.plot(kp_coord_uv[kp_visible, 0], kp_coord_uv[kp_visible, 1], 'ro')
+    # plt.show()
 
     break # Close program after just one sample (we are unit testing after all)
 
@@ -70,14 +71,48 @@ for sample_id, anno in anno_all.items():
     #plt.imshow(mask)
     #plt.show()
 
-    # Convert to the mask that we desire!
+    # Convert to the mask that we desire! (0 for anything that is not a hand, and 1 for anything that is a hand)
     mask[mask == 1] = 0
     mask[mask >= 2] = 1
 
     plt.imshow(mask)
     plt.show()
 
-    break
+    break # just need one test, real simple.
 
+# NEXT, next step, -> write a quick and dirty algorithm to reliably reject all training and testing samples where there are two hands in the image...
+# How do we do this?
+# -> Look at the kp_visible array. Pick only example in the training set where only points from the left hand can be seen or only points from the right hand
+# can be seen. It does not need to be the case where all points for just one hand are seen. It can be a subset of points, but so long as that subset belongs
+# to just one hand.
+
+total_training_examples = 41257 + 1
+valid_training_examples = 0
+start_time = time.time()
+
+print("Begin single hand parse")
+for sample_id, anno in anno_all.items():
+    # format of the kp_visible array
+    '''
+    # 0: left wrist, 1-4: left thumb [tip to palm], 5-8: left index, ..., 17-20: left pinky,
+    # 21: right wrist, 22-25: right thumb, ..., 38-41: right pinky
+    '''
+    kp_visible = (anno['uv_vis'][:, 2] == 1)
+    case1 = np.sum(kp_visible[0:21])
+    case2 = np.sum(kp_visible[21:])
+    #print("kp_visible", kp_visible)
+    #print("case1", case1)
+    #print("case2", case2)
+
+    # also invalidates training examples where none of the hands can be seen. We must see at least some of just one hand for it to be valid.
+    valid_case = (case1 > 0 and case2 == 0) or (case1 == 0 and case2 > 0) 
+    if (valid_case):
+        valid_training_examples += 1
+
+
+
+end_time = time.time()
+print("Total elapsed time for single hand parse =", end_time - start_time, "s")
+print("Amount of valid training examples = ", valid_training_examples / total_training_examples * 100, "%")
 
 
