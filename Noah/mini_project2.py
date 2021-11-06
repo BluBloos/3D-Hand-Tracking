@@ -5,7 +5,7 @@
 # Have an intermediate loss term for learning the segmentaton masks.
 # Then we have a final loss term for the full 21 joints prediction.
 
-# thinking right of the bat that we convert the ground truth keypoints to gaussian heatmaps. This seems like it would be easier to learn...
+# Thinking right of the bat that we convert the ground truth keypoints to gaussian heatmaps. This seems like it would be easier to learn...
 # -> gives the network more room to play around!
 
 # The training set examples are as follows.
@@ -24,6 +24,7 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 import imageio
+import numpy as np
 
 dir = 'RHD_published_v2' 
 set = 'training'
@@ -43,27 +44,40 @@ for sample_id, anno in anno_all.items():
     print("kp_visible", kp_visible)
 
     # Visualize data
-    #fig = plt.figure(1)
-    #ax1 = fig.add_subplot('221')
-    #ax2 = fig.add_subplot('222')
-    #ax3 = fig.add_subplot('223')
-    #ax4 = fig.add_subplot('224', projection='3d')
-    plt.imshow(image)
-    plt.plot(kp_coord_uv[kp_visible, 0], kp_coord_uv[kp_visible, 1], 'ro')
-    #ax1.plot(kp_coord_uv_proj[kp_visible, 0], kp_coord_uv_proj[kp_visible, 1], 'gx')
-    #ax2.imshow(depth)
-    #ax3.imshow(mask)
-    #ax4.scatter(kp_coord_xyz[kp_visible, 0], kp_coord_xyz[kp_visible, 1], kp_coord_xyz[kp_visible, 2])
-    #ax4.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
-    #ax4.set_xlabel('x')
-    #ax4.set_ylabel('y')
-    #ax4.set_zlabel('z')
-    plt.show()
+    #plt.imshow(image)
+    #plt.plot(kp_coord_uv[kp_visible, 0], kp_coord_uv[kp_visible, 1], 'ro')
+    #plt.show()
 
     break # Close program after just one sample (we are unit testing after all)
 
 # UNIT TEST #1.
 # Read in just one training example and plot the example data with the 2D keypoints right on top.
 # DONE.
+
+# Next step -> convert the segmentation masks to JUST black and white.
+# UNIT TEST #2
+
+for sample_id, anno in anno_all.items():
+    
+    # For the formatting of the mask data...
+    # 0: background, 1: person, 
+    # 2-4: left thumb [tip to palm], 5-7: left index, ..., 14-16: left pinky, 17: palm, 
+    # 18-20: right thumb, ..., right palm: 33
+    mask = imageio.imread(os.path.join(path, 'mask', '%.5d.png' % sample_id))
+    print("mask", mask)
+    print("mask.shape", mask.shape)
+
+    #plt.imshow(mask)
+    #plt.show()
+
+    # Convert to the mask that we desire!
+    mask[mask == 1] = 0
+    mask[mask >= 2] = 1
+
+    plt.imshow(mask)
+    plt.show()
+
+    break
+
 
 
