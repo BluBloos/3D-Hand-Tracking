@@ -122,6 +122,7 @@ print("TensorFlow version:", tf.__version__)
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, UpSampling2D, MaxPool2D
 from tensorflow.keras import Model
 
+'''
 model = tf.keras.models.Sequential([
   Conv2D(32, 8, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"),
   MaxPool2D(),  
@@ -131,6 +132,45 @@ model = tf.keras.models.Sequential([
   UpSampling2D(),
   UpSampling2D()
 ])
+'''
+
+
+class MyModel(Model):
+    def __init__(self, modelName):
+        super(MyModel, self).__init__()
+        self._layers = [
+            Conv2D(256, 8, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"), \
+            MaxPool2D(), \
+            Conv2D(16, 4, activation = 'relu', padding="same"), \
+            MaxPool2D(), \
+            Conv2D(1, 2, activation = 'sigmoid', padding="same"), \
+            UpSampling2D(), \
+            UpSampling2D() \
+        ]
+        self.residual_layers = [
+            Conv2D(128, 1, activation='relu', padding="same"), \
+            Conv2D(128, 3, activation='relu', padding="same"), \
+            Conv2D(256, 1, activation='relu', padding="same"), \
+        ]
+        self.modelName = modelName
+    def ResidualModule(self, x):
+        out = self.residual_layers[0](x)
+        out = self.residual_layers[1](out)
+        out = self.residual_layers[2](out)
+        return out + x # This is the residual part lol. The skip connection.
+    def call(self, x):
+        x = self._layers[0](x)
+        x = self.ResidualModule(x)
+        x = self._layers[1](x)
+        x = self.ResidualModule(x)
+        x = self._layers[3](x)
+        x = self.ResidualModule(x)
+        x = self._layers[5](x)
+        return self._layers[6](x)
+    def summary(self):
+        print("Model: ", self.modelName)
+
+model = MyModel("Aristotle")
 
 # LOAD IN THE FIRST IMAGE IN THE DATASET FOR TESTING (AS WELL AS FOR REDRAWING PREDs AFTER EACH EPOCH)
 image = imageio.imread(os.path.join(path, 'color', '%.5d.png' % 0)) 
@@ -269,3 +309,28 @@ for epoch in range(EPOCHS):
   pred = model( _image )
   plt.imshow(pred[0])
   plt.show()
+
+
+# 2021.11.25 Deep Work Session Plan
+
+# Want to try and implement stacked hourglass network + residual networks for 2D heatmap predictions.
+# Stacked hourglass network paper:  https://arxiv.org/pdf/1603.06937v2.pdf 
+# Deep residual networks: https://openaccess.thecvf.com/content_cvpr_2016/papers/He_Deep_Residual_Learning_CVPR_2016_paper.pdf
+# Paper that includes both: https://arxiv.org/pdf/1903.00812.pdf
+
+# Interesting paper that we might want to look at!
+# Human-Pose Estimation via Latent 2.5D Heatmap Regression, https://jankautz.com/publications/HandPose25D_ECCV18.pdf
+
+# STACKED HOURGLASS NETWORK
+# convolution and max pooling take the image down to very low resolutions.
+# at each max pooling step the network branches (pre-pooled res), and we apply more convolutions to this.
+# we do nearest neighbor upsampling followed by an element-wise addition.
+
+# once we reach the output resolution, two consecutive 1x1 convolutions are applied.
+# we want filter that are like 3x3, two of them, over filters of 5x5. 
+# and we want residual networks INSIDE the stacked hourglass structure.
+
+# Each box in hourglass structure is a residual module.
+# all residual modules output 256 features (256 filters?)
+
+# Reading the paper, it seems that each residual module is something like 128 filters, 1x1 convolution, 128 filters, 3x3 conv, then 256 filters, 1x1 conv.
