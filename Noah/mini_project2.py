@@ -36,14 +36,14 @@ with open(os.path.join(path, 'anno_%s.pickle' % set), 'rb') as fi:
 
 for sample_id, anno in anno_all.items():
     image = imageio.imread(os.path.join(path, 'color', '%.5d.png' % sample_id))
-    print("Image", image)
+    #print("Image", image)
     
     # 0: left wrist, 1-4: left thumb [tip to palm], 5-8: left index, ..., 17-20: left pinky,
     # 21: right wrist, 22-25: right thumb, ..., 38-41: right pinky
     kp_coord_uv = anno['uv_vis'][:, :2]  # u, v coordinates of 42 hand keypoints, pixel.
     kp_visible = (anno['uv_vis'][:, 2] == 1)  # visibility of the keypoints, boolean
-    print("kp_coord_uv", kp_coord_uv)
-    print("kp_visible", kp_visible)
+    #print("kp_coord_uv", kp_coord_uv)
+    #print("kp_visible", kp_visible)
 
     # Visualize data
     #plt.imshow(image)
@@ -66,8 +66,8 @@ for sample_id, anno in anno_all.items():
     # 2-4: left thumb [tip to palm], 5-7: left index, ..., 14-16: left pinky, 17: palm, 
     # 18-20: right thumb, ..., right palm: 33
     mask = imageio.imread(os.path.join(path, 'mask', '%.5d.png' % sample_id))
-    print("mask", mask)
-    print("mask.shape", mask.shape)
+    #print("mask", mask)
+    #print("mask.shape", mask.shape)
 
     #plt.imshow(mask)
     #plt.show()
@@ -166,8 +166,8 @@ for sample_id, anno in anno_all.items():
     # 21: right wrist, 22-25: right thumb, ..., 38-41: right pinky
     kp_coord_uv = anno['uv_vis'][:, :2]  # u, v coordinates of 42 hand keypoints, pixel.
     kp_visible = (anno['uv_vis'][:, 2] == 1)  # visibility of the keypoints, boolean
-    print("kp_coord_uv", kp_coord_uv)
-    print("kp_visible", kp_visible)
+    #print("kp_coord_uv", kp_coord_uv)
+    #print("kp_visible", kp_visible)
 
     # Visualize data
     # plt.imshow(image)
@@ -212,6 +212,7 @@ train_ds = tf.data.Dataset.from_tensor_slices(
 test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
 '''
 
+'''
 class MyModel(Model):
     def __init__(self):
         super(MyModel, self).__init__()
@@ -219,11 +220,11 @@ class MyModel(Model):
         # 32 filters, 3x3 kernel
         # https://www.tensorflow.org/api_docs/python/tf/keras/layers/MaxPool2D
         # https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D
-        self.conv1 = Conv2D(32, 8, activation='relu', input_shape=(1, 320,320,3), padding="same")
-        self.conv2 = Conv2D(16, 4, activation = 'relu', padding="same")
-        self.conv3 = Conv2D(1, 2, activation = 'sigmoid', padding="same")
+        self.conv1 = Conv2D()
+        self.conv2 = 
+        self.conv3 = 
         self.upsample = UpSampling2D() # Default factor of 2x
-        self.maxpooling = MaxPool2D() # default of (2, 2) pool and strid of (2, 2)
+        self.maxpooling =  # default of (2, 2) pool and strid of (2, 2)
         #self.conv1 = Conv2D(32, 3, activation='relu')
         #self.flatten = Flatten()
         #self.d1 = Dense(128, activation='relu')
@@ -254,34 +255,47 @@ class MyModel(Model):
         #x = self.d1(x)
         
         return x
+'''
 
+model = tf.keras.models.Sequential([
+  Conv2D(32, 8, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"),
+  MaxPool2D(),  
+  Conv2D(16, 4, activation = 'relu', padding="same"),
+  MaxPool2D(),  
+  Conv2D(1, 2, activation = 'sigmoid', padding="same"), 
+  UpSampling2D(),
+  UpSampling2D()
+])
 
-# create the model instance
-model = MyModel()
+# model.summary()
+# Stole this function from Stackoverflow :)
+def rgb2gray(rgb):
+    return np.expand_dims(np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140]), axis=2)
 
 image = imageio.imread(os.path.join(path, 'color', '%.5d.png' % 0)) # load in the first image from the dataset
-_image = np.expand_dims(image, axis=0 )
+_image = image.astype('float32')
+_image = rgb2gray(_image / 255)
+_image = np.expand_dims(_image, axis=0 )
 print("_image", _image)
 print("_image.shape", _image.shape)
-_image = _image.astype(float)
-_image = _image / 255
 
-pred = model( _image )
 
-print( tf.shape(pred) )
-print(pred.numpy())
+# pred = model( _image )
+# print( tf.shape(pred) )
+# print(pred.numpy())
 
-#plt.imshow(pred.numpy()[0])
-#plt.show()
+# plt.imshow(pred.numpy()[0])
+# plt.show()
 
 
 # train_ds and test_ds
 
 # x_train.shape = (5000, 320, 320, 3)
-x_train = np.zeros( (200, 320, 320, 3) )
-y_train = np.zeros( (200, 320, 320, 1) )
-x_test = np.zeros( (100, 320, 320, 3) )
+x_train = np.zeros( (1000, 320, 320, 1) ) # 1 channel on the input for grayscale images!
+y_train = np.zeros( (1000, 320, 320, 1) )
+x_test = np.zeros( (100, 320, 320, 1) ) # 1 channel on the input for grayscale images!
 y_test = np.zeros( (100, 320, 320, 1) ) 
+
 
 # load in the data
 def LoadData(dataAmount, dataType, np1, np2):
@@ -292,14 +306,14 @@ def LoadData(dataAmount, dataType, np1, np2):
     count = 0
     for sample_id, anno in anno_all.items():
         image = imageio.imread(os.path.join(path, 'color', '%.5d.png' % sample_id))
-        _image = image.astype(float)
-        _image = _image / 255
+        _image = image.astype('float32')
+        _image = rgb2gray(_image / 255)
         np1[count, :, :, :] = _image
         mask = imageio.imread(os.path.join(path, 'mask', '%.5d.png' % sample_id))
         # augment the mask
         mask[mask == 1] = 0
         mask[mask >= 2] = 255
-        _mask = mask.astype(float)
+        _mask = mask.astype('float32')
         _mask = _mask / 255
         np2[count, :, :, :] = np.expand_dims(_mask, axis=2)
 
@@ -308,7 +322,7 @@ def LoadData(dataAmount, dataType, np1, np2):
             break
 
 start_time = time.time()
-LoadData(200, 'training', x_train, y_train)
+LoadData(1000, 'training', x_train, y_train)
 end_time = time.time()
 print('Elapsed for LoadData training', end_time - start_time, 's')
 start_time = time.time()
@@ -316,62 +330,81 @@ LoadData(100, 'evaluation', x_test, y_test)
 end_time = time.time()
 print('Elapsed for LoadData evaluation', end_time - start_time, 's')
 
+model.summary()
+
 #plt.imshow(x_train[0])
 #plt.show()
 #plt.imshow(y_train[0])
 #plt.show()
 
+#print("Now waiting for user input: Program paused.")
+#input() # Get user input -> pause the programs
+
+
+
 #print('x_train', x_train.shape)
 #print('y_train', y_train.shape)
-
-    
-
 
 train_ds = tf.data.Dataset.from_tensor_slices(
     (x_train, y_train)).batch(32)
 
 test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
 
-'''
-'''
+
+class StupidSimpleLossMetric():
+    def __init__(self):
+        self.losses = [] # empty python array 
+    def __call__(self, loss):
+        self.losses.append(loss)
+    def result(self):
+        return sum(self.losses) / len(self.losses)
+    def reset_states(self):
+        self.losses = []
 
 
 # TRAINING MODEL CODE
 
 # KLDivergence gets us the difference between two probability distributions
-loss_object = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
+#loss_object = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
 # Black box -> takes the weights and gradients and gives us better weights :)
 optimizer = tf.keras.optimizers.Adam() # defaults should work just fine
 
-train_loss = tf.keras.metrics.KLDivergence(name='train_loss')
-train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+train_loss = StupidSimpleLossMetric()
+test_loss = StupidSimpleLossMetric()
 
-test_loss = tf.keras.metrics.KLDivergence(name='test_loss')
-test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+train_accuracy = tf.keras.metrics.MeanAbsolutePercentageError(name='train_accuracy')
+test_accuracy = tf.keras.metrics.MeanAbsolutePercentageError(name='test_accuracy')
 
-@tf.function
+# @tf.function Compiles a function into a callable TensorFlow graph.
+# https://www.tensorflow.org/guide/intro_to_graphs
+def loss_func(pred, labels):
+    return tf.math.reduce_sum( tf.math.square(labels - tf.cast(pred,tf.float64)))
+
+#@tf.function
 def train_step(images, segmentation_masks):
     with tf.GradientTape() as tape:
         predictions = model(images)
+        loss = loss_func(predictions, segmentation_masks)
         #loss = np.dot(tf.reshape(segmentation_masks, [102400], tf.reshape(predictions, [102400])
     gradients = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-    train_loss(loss, predictions)
+    train_loss(loss)
     train_accuracy(labels, predictions)
 
     #print("train_step loss:", train_loss.result())
     #print("train_step accuracy:", train_accuracy.result() * 100)
 
 # test the model after training it
-@tf.function
+#@tf.function
 def test_step(images, labels):
   # training=False is only needed if there are layers with different
   # behavior during training versus inference (e.g. Dropout).
   predictions = model(images, training=False)
-  t_loss = loss_object(labels, predictions)
-  test_loss(t_loss, predictions)
+  t_loss = loss_func(predictions, labels)
+  test_loss(t_loss)
   test_accuracy(labels, predictions) 
+
 
 EPOCHS = 10 # sure...
 
@@ -385,7 +418,6 @@ for epoch in range(EPOCHS):
   test_accuracy.reset_states()
 
   for images, labels in train_ds:
-    
     train_step(images, labels)
 
   for test_images, test_labels in test_ds:
