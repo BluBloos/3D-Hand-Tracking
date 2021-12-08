@@ -123,29 +123,33 @@ from tensorflow.keras.layers import Dense, Flatten, Conv2D, UpSampling2D, MaxPoo
 from tensorflow.keras import Model
 
 '''
-model = tf.keras.models.Sequential([
-  Conv2D(32, 8, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"),
+model2 = tf.keras.models.Sequential([
+  Conv2D(256, 7, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"),
+  MaxPool2D(),
+  MaxPool2D(),
   MaxPool2D(),  
   Conv2D(16, 4, activation = 'relu', padding="same"),
   MaxPool2D(),  
   Conv2D(1, 2, activation = 'sigmoid', padding="same"), 
   UpSampling2D(),
+  UpSampling2D(),
+  UpSampling2D(),
   UpSampling2D()
 ])
+model2.summary()
 '''
-
 
 class MyModel(Model):
     def __init__(self, modelName):
         super(MyModel, self).__init__()
         self._layers = [
-            Conv2D(256, 8, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"), \
+            Conv2D(256, 7, activation='relu', input_shape=(320,320, 1), data_format="channels_last", padding="same"), \
             MaxPool2D(), \
             Conv2D(16, 4, activation = 'relu', padding="same"), \
             MaxPool2D(), \
             Conv2D(1, 2, activation = 'sigmoid', padding="same"), \
             UpSampling2D(), \
-            UpSampling2D() \
+            UpSampling2D(), \
         ]
         self.residual_layers = [
             Conv2D(128, 1, activation='relu', padding="same"), \
@@ -160,13 +164,17 @@ class MyModel(Model):
         return out + x # This is the residual part lol. The skip connection.
     def call(self, x):
         x = self._layers[0](x)
-        x = self.ResidualModule(x)
+        #x = self.ResidualModule(x)
+        x = self._layers[1](x) # two max pooling layers!
         x = self._layers[1](x)
+        x = self._layers[1](x) # another max pooling layer...
         x = self.ResidualModule(x)
         x = self._layers[3](x)
         x = self.ResidualModule(x)
         x = self._layers[5](x)
-        return self._layers[6](x)
+        x = self._layers[6](x)
+        x = self._layers[6](x)
+        return self._layers[6](x) 
     def summary(self):
         print("Model: ", self.modelName)
 
@@ -181,8 +189,8 @@ print("_image", _image)
 print("_image.shape", _image.shape)
 
 # LOAD IN THE DATA
-x_train = np.zeros( (1000, 320, 320, 1) ) # 1 channel on the input for grayscale images!
-y_train = np.zeros( (1000, 320, 320, 1) )
+x_train = np.zeros( (100, 320, 320, 1) ) # 1 channel on the input for grayscale images!
+y_train = np.zeros( (100, 320, 320, 1) )
 x_test = np.zeros( (100, 320, 320, 1) ) # 1 channel on the input for grayscale images!
 y_test = np.zeros( (100, 320, 320, 1) ) 
 
@@ -211,7 +219,7 @@ def LoadData(dataAmount, dataType, np1, np2):
 
 print("Loading in the training data samples...")
 start_time = time.time()
-LoadData(1000, 'training', x_train, y_train)
+LoadData(100, 'training', x_train, y_train)
 end_time = time.time()
 print('Elapsed for LoadData training', end_time - start_time, 's')
 print("Loading in the evaluation data samples...")
