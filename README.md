@@ -1,6 +1,19 @@
 # QMIND2021-2022
+
+**Team:**
+- Noah Cabral
+- Maddie Mackie
+- Lucas Coster 
+- Max Vincent 
+- Oscar Lu
+
+
+**<a style="text-align:left" href="https://qmind.ca/#Research">
+DAIR @ QMIND
+</a>**
+
 Project to track the 3D shape and pose of two-hands through high hand-to-hand and hand-to-object contact, using a monocular RGB input.
-Team: DAIR @ QMIND | Noah Cabral, Maddie Mackie, Lucas Coster, Max Vincent, Oscar Lu
+See the project <a href="/TODO.md">roadmap</a> for anything regarding this project.
 
 ## Preliminary Results
 
