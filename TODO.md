@@ -1,4 +1,32 @@
-All Relevant project links: https://linktr.ee/noahcabral
+
+# Links
+- <a href="https://linktr.ee/noahcabral">Linktree</a> 
+- <a href="/#project-definition">Project Definition</a> 
+- <a href="/#the-mission">Mission Statement</a> 
+- <a href="/#original-timeline">Original Timeline</a> 
+- <a href="/#currentrevised-timeline---20220126">Revised Timeline</a>
+- <a href="/#todo">TODO</a>
+
+# Project Definition
+- Generate a 3D mesh + 21 keypoints of two-hands through high hand-to-hand and hand-to-object contact. 
+- Use a single camera.
+- Why: VR/AR, Sign Language, Medical, Human-Computer interaction, etc... 
+- **The motivation of this research is primarily an engineering one**, where the goal is to develop an intelligent system that solves a real problem better than all alternative approaches. 
+
+# The Mission
+- **Hold an interactive demo at <a href="https://cucai.ca/">CUCAI</a>** 
+  - user has both their hands tracked in real-time by an off-the-shelf RGB camera. 
+  - Results of tracking appear on a monitor in front of them, and the camera will be positioned face down towards the floor. 
+  - As a stretch goal, the demo might include a physics-based interaction of the hands with virtual objects.
+- **MVP**
+  - Produce two 3D meshes of the hands using a single RGB camera. 
+  - No requirement for real-time performance. 
+  - Along with the 3D meshes, output the 3D joint locations.
+  - Mesh articulations are invariant to occlusions from external objects as well as those produced by inter- and intra-hand interactions. 
+  - The accuracy when the hands are occluded is not important, but from a qualitative perspective the tracking should not fail catastrophically. 
+  - The accuracy of the hands when not under occlusion should compare to state-of-the-art methods.  
+- **The Dream 😍**
+  - CUCAI demo is in realtime as opposed to, for example, a sparse 5 FPS.     
 
 # Progress Thus Far
 We keep a lab notebook of all our progress. 
