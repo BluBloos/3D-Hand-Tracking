@@ -80,39 +80,57 @@ The most up-to-date version of our project is <a href="/HandTracking.ipynb">this
 
 # Current/Revised Timeline - 2022.01.26
 
+NOTE: Schedule is to be modified as we continue to learn more \
+about the exact specifics with the rest of the work to be done.
 
+## Revised Scope
+- No longer caring about the estimation under hand-to-object and hand-to-hand contact.
+- And thus sticking with just the RHD (Rendered Hand Pose dataset).
+- The concern is then, "How do we still do research?"
+  - "One step at a time". If we can do the mimized scope sufficiently fast, we can look into doing more.
+  - Asynchronously brainstorm answers to this question.
+  - Asynchronously braintorm novel architectures to solve the problem as opposed to going with an existing implementation.
+  - Keep on top of the our lab notebook. 
+
+## January
+- Meeting 1
+  - Render a MANO hand in a PyTorch simulation.  
+## February
+- Wk1
+  - Asynchronously: Demo, Google Cloud   
+  - Meeting 1
+    - Reread paper
+  - Meeting 2
+    - Go hard on trying to implement paper 
+- Wk2
+  - Asynchronously: Demo, Google Cloud 
+  - Meeting 1
+    - Continue "going hard"
+  - Meeting 2
+    - More reading   
+- Wk3
+  - Keypoint estimation
+- Wk4
+  - MANO parameter estimation
+
+## Early March
+- Finalize paper.
+- Demo finishing touches.
+- ATTEND CUCAI AND FLEX 🔥🔥🔥🔥.
 
 # TODO
-- All team to understand how the current categorical cross entropy loss function works as written in the code.
-- Figure out why UNET architecture works, then try to get the old architecture working.
-- Add onto network predictions of 21 keypoints + a second loss term.
-- Swap from using RHD to Interhand.
-- Add onto end of network (after keypoint prediction), MANO parameter estimation for hand mesh prediction, and use laplacian loss term maybe.
-- Add a rending routine for MANO-defined hands. 
+  
+- Basically, we want to implement the following model:
+  - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
+- Maybe:
+  - Understand the current architecture before "deleting" it.
+  - And figure out why our efforts prior to UNET used so much memory.
+- Add a rending routine for MANO-defined hands
+  - This Github repo may be useful: https://github.com/ikalevatykh/mano_pybullet
 - Transition to using Google Cloud Storage as opposed to Google Drive for hosting the dataset.
   - This is so that everyone does not need to upload the dataset to their own drive.
-- Figure out why we are using so much memory and techniques to reduce this.
-
-# What we are Doing Right Now
-
-## Noah
-I am working on:
-- Model architecture.
-
-## Maddie
-I am working on:
-- Model Architecture.
-
-## Lucas
-I am working on:
-- Investigating the Interhand https://mks0601.github.io/InterHand2.6M/ dataset. Then transitioning our project from RHD to this dataset.
-
-## Oscar
-I am working on:
-- Implementing a rendering routine to render the 3D mesh of a hand from a MANO model.
-
-## Max
-I am working on:
-- Model Architecture.
+- Model Architecture:
+  - Keypoint estimation.
+  - MANO parameter estimation for hand mesh prediction.
 
 
