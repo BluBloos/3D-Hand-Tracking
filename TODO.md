@@ -94,7 +94,7 @@ about the exact specifics with the rest of the work to be done.
 
 ## January
 - Meeting 1
-  - Render a MANO hand in a PyTorch simulation.  
+  - Render a MANO hand in a PyTorch simulation -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>  
 ## February
 - Wk1
   - Asynchronously: Demo, Google Cloud   
