@@ -37,6 +37,8 @@ We didn't actually start this from the beginning of the project, so it may not i
 
 The most up-to-date version of our project is <a href="/HandTracking.ipynb">this Jupyter Notebook</a>.
 
+Our midterm project presentation can be accessed <a href="https://docs.google.com/presentation/d/1TA6MvU6VWnCx7TWTQFaYR-NhMFc4iGwGTj08Lq5pFxI/edit?usp=sharing">here</a> 
+
 # What we have learned
 
 - We work well in long in-person meetings that are somewhat unplanned.
@@ -94,36 +96,50 @@ about the exact specifics with the rest of the work to be done.
 
 ## January
 - Meeting 1
-  - Render a MANO hand in a PyTorch simulation -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>  
+  - Render a MANO hand in a PyTorch simulation -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>
+  - Begin reading <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a> -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span> 
 ## February
 - Wk1
-  - Asynchronously: Demo, Google Cloud   
+  - Asynchronously: Google Cloud   
   - Meeting 1
-    - Reread paper
+    - Continue reading <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a>. Potenentially implement.
   - Meeting 2
-    - Go hard on trying to implement paper 
+    - Finish implementation.
 - Wk2
-  - Asynchronously: Demo, Google Cloud 
+  - Asynchronously: Google Cloud 
   - Meeting 1
-    - Continue "going hard"
+    - Begin Step 2 of plan: Add stacked hourglass to generate heatmaps as seen in both
+      - <a href="https://arxiv.org/pdf/1902.09305.pdf">End-to-end Hand Mesh Recovery from a Monocular RGB Image</a>
+      - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
   - Meeting 2
-    - More reading   
+    - Continue Step 2 
 - Wk3
-  - Keypoint estimation
+  - Asynchronosouly: Demo
 - Wk4
-  - MANO parameter estimation
+  - Asynchronosouly: Demo
 
-## Early March
+## March
+- Buffer time to complete unfinished tasks.
+- What things must be done during this month will be defined more as the progress in Febuary progresses.
+
+## Early April
 - Finalize paper.
 - Demo finishing touches.
 - ATTEND CUCAI AND FLEX 🔥🔥🔥🔥.
 
 # TODO
   
-- Basically, we want to implement the following model:
+- Final goal is, implement the following model:
   - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
+- There will be a 3-step plan in implementing this:
+  - Step 1: Implement <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a>
+  - Step 2: Add stacked hourglass to generate heatmaps as seen in both
+      - <a href="https://arxiv.org/pdf/1902.09305.pdf">End-to-end Hand Mesh Recovery from a Monocular RGB Image</a>
+      - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
+  - Step 3: Converge on the final model as seen in <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>, or any other chosen paper.
+
 - Maybe:
-  - Understand the current architecture before "deleting" it.
+  - Understand the current architecture before "deleting" it -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>
   - And figure out why our efforts prior to UNET used so much memory.
 - Add a rending routine for MANO-defined hands
   - This Github repo may be useful: https://github.com/ikalevatykh/mano_pybullet
