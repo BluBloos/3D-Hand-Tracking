@@ -3,7 +3,7 @@
 import tensorflow as tf
 
 # TODO: Make it so that we do not have to pass in batch_size like this.
-def _MAKE_REGRESSION_MODULE(batch_size):
+def MAKE_REGRESSION_MODULE(batch_size):
   inputs = tf.keras.layers.Input(shape=[576,])
   
   model = tf.keras.models.Sequential()
@@ -23,4 +23,3 @@ def _MAKE_REGRESSION_MODULE(batch_size):
   
   return tf.keras.Model(inputs=inputs, outputs=params)
 
-REGRESSION_MODULE = _MAKE_REGRESSION_MODULE(32)

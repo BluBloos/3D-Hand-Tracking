@@ -3,10 +3,10 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Flatten
 
-def _MAKE_MOBILE_NET():
-  inputs = tf.keras.layers.Input(shape=[224,224,3])
+def MAKE_MOBILE_NET(image_size, image_channels):
+  inputs = tf.keras.layers.Input(shape=[image_size,image_size,image_channels])
 
-  mobileNet = tf.keras.applications.MobileNetV3Small(input_shape=[224, 224, 3])
+  mobileNet = tf.keras.applications.MobileNetV3Small(input_shape=[image_size, image_size, image_channels])
   # NOTE(Noah): Need to restart the runtime in Collab, otherwise 
   # tensorflow appends increasing numbers
   # to the model names.
@@ -20,4 +20,3 @@ def _MAKE_MOBILE_NET():
 
   return tf.keras.Model(inputs=inputs, outputs=out)
 
-MOBILE_NET = _MAKE_MOBILE_NET()

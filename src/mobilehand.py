@@ -7,25 +7,17 @@
 import numpy as np
 import tensorflow as tf
 
-from mobilenet_layer import MOBILE_NET
-from ireg_layer import REGRESSION_MODULE
+from mobilenet_layer import MAKE_MOBILE_NET
+from ireg_layer import MAKE_REGRESSION_MODULE
 
-# Mobile net test
-MOBILE_NET( np.zeros( (224, 224, 3) ).reshape(1,224,224,3) )
+def MAKE_MOBILE_HAND(image_size, image_channels, batch_size):
+  inputs = tf.keras.layers.Input(shape=[image_size, image_size, image_channels])
 
-# Regression module testing
-input_test = tf.random.uniform(shape = (32,576))
-input_test = tf.cast(input_test, tf.float32)
-output_test = REGRESSION_MODULE(input_test)
-print(output_test)
+  mobile_net = MAKE_MOBILE_NET(image_size, image_channels)
+  reg_module = MAKE_REGRESSION_MODULE(batch_size)
 
-IMAGE_SIZE = 224
-
-def _MAKE_MOBILE_HAND():
-  inputs = tf.keras.layers.Input(shape=[IMAGE_SIZE, IMAGE_SIZE, 3])
-
-  m_output = MOBILE_NET(inputs)
-  reg_output = REGRESSION_MODULE(m_output)
+  m_output = mobile_net(inputs)
+  reg_output = reg_module(m_output)
 
   # TODO
   # mano_output = MANO_LAYER(reg_output)
@@ -34,10 +26,4 @@ def _MAKE_MOBILE_HAND():
 
   return tf.keras.Model(inputs=inputs, outputs=reg_output)
 
-MOBILE_HAND = _MAKE_MOBILE_HAND()
 
-# INTEGRATION TEST
-input_test = tf.random.uniform(shape = (32,IMAGE_SIZE, IMAGE_SIZE, 3))
-input_test = tf.cast(input_test, tf.float32)
-output_test = MOBILE_HAND(input_test)
-print(output_test)
