@@ -1,4 +1,207 @@
 # Author: Noah Cabral
+# NOTE: This file is directly converted from the Pytorch implementation
+# https://github.com/gmntu/mobilehand
+
+# TODO: We currently only understand the MANO layer on a high-level.
+# We need to work to understand how this works by getting into the details.
+
+import tensorflow as tf
+import numpy as np
+import cv2
+from tensorflow.keras import Model
+import os
+
+# NOTE(Noah): Translation complete.
+def vertices2joints(vert, J_):
+  ''' 
+  Calculates 3D joint positions from vertices
+  using joint regressor array
+  Input:
+      vert [b,v,t] (batch size, num of vert, 3)
+      J_   [j,v]   (num of joint, number of vert)
+  Output:
+      j_rest [b,j,t] (batch size, num of joint, 3)
+  '''
+  # TODO(Noah): Probably need to change what the equation is here.
+  return tf.einsum('bvt,jv->bjt', [vert, J_])
+
+# NOTE(Noah): Translation complete.
+def blend_shape(beta, S_):
+  ''' 
+  Calculates per vertex displacement due to shape deformation
+  i.e. Multiply each shape displacement (shape blend shape) by 
+        its corresponding beta and then sum them
+  Displacement [b,v,t] = sum_{l} beta[b,l] * S_[v,t,l]
+  Input:
+      beta [b,l]   (batch size, length=10)
+      S_   [v,t,l] (num of vert, 3, length=10)
+  Output:
+      blend_shape [b,v,t] (batchsize, num of vert, 3)
+  '''
+  # TODO(Noah): Once more, it is probably the case that we need to change
+  # the eq here.
+  return tf.einsum('bl,vtl->bvt', [beta, S_])
+
+# NOTE(Noah): Translation complete.
+def batch_rodrigues(rvecs, epsilon=1e-8):
+  ''' 
+  Calculates the rotation matrices for a batch of rotation vectors
+  Input:
+      rvecs [N,3] array of N axis-angle vectors
+  Output:
+      rmat [N,3,3] rotation matrices for the given axis-angle parameters
+  '''
+  # Get batch size
+  bs = rvecs.shape[0]
+  # Get device type
+  #device = rvecs.device
+  #angle = torch.norm(rvecs + 1e-8, dim=1, keepdim=True)
+  angle = tf.norm(rvecs + 1e-8, axis=1, keepdims=True)
+  rot_dir = rvecs / angle
+  # NOTE(Noah): Unsure if tf.cos / tf.sin is sensible.
+  #cos = torch.unsqueeze(torch.cos(angle), dim=1)
+  cos = tf.expand_dims(tf.cos(angle), axis=1)
+  sin = tf.expand_dims(tf.sin(angle), axis=1)
+  # Bx1 arrays
+  #rx, ry, rz = torch.split(rot_dir, 1, dim=1)
+  rx, ry, rz = tf.split(rot_dir, 1, axis=1)
+  #K = torch.zeros((bs, 3, 3), dtype=torch.float32, device=device)
+  K = tf.zeros((bs, 3, 3), dtype=tf.float32)
+  #zeros = torch.zeros((bs, 1), dtype=torch.float32, device=device)
+  zeros = tf.zeros((bs,1), dtype=tf.float32)
+  #K = torch.cat([zeros, -rz, ry, rz, zeros, -rx, -ry, rx, zeros], dim=1) \
+  #    .view((bs, 3, 3))
+  K = tf.reshape(
+      tf.concat([zeros, -rz, ry, rz, zeros, -rx, -ry, rx, zeros], axis=1),
+      (bs, 3, 3)
+  )
+  #eye3 = torch.eye(3, dtype=torch.float32, device=device).unsqueeze(dim=0)
+  eye3 = tf.expand_dims(tf.eye(3, dtype=tf.float32), axis=0)
+  #rmats = eye3 + sin * K + (1 - cos) * torch.bmm(K, K)
+  rmats = eye3 + sin * K + (1 - cos) * tf.linalg.matmul(K, K)
+  return rmats
+
+# TODO(Noah): It seems that the calling of tf.pad here is not going to do it.
+# Of course, we only know this after our experience with tf.pad today.
+def transform_mat(R, t):
+  ''' 
+  Creates a batch of transformation matrices
+  
+  Input:
+      R [B,3,3] array of a batch of rotation matrices
+      t [B,3,1] array of a batch of translation vectors
+  
+  Output
+      T [B,4,4] transformation matrix
+  '''
+  # No padding left or right, only add an extra row
+  # return torch.cat([F.pad(R, [0, 0, 0, 1]),
+  #                   F.pad(t, [0, 0, 0, 1], value=1)], dim=2)
+  return tf.concat(
+      [tf.pad(R, tf.constant([[0,0],[0,1]])),
+      tf.pad(t, tf.constant([[0,0],[0,1]]), constant_values=1)],
+      axis=2
+  )
+
+def batch_rigid_transform(rmats, joints, parents):
+  '''
+  Applies a batch of rigid transformations to the joints
+  
+  Input:
+      rmats   [B,N,3,3] rotation matrices
+      joints  [B,N,3]   joint locations
+      parents [B,N]     kinematic tree of each object
+  Output:
+      posed_joints   [B,N,3] 
+          joint locations after applying the pose rotations
+      rel_transforms [B,N,4,4] 
+          relative (with respect to the root joint) 
+          rigid transformations for all the joints
+  '''
+  #joints = torch.unsqueeze(joints, dim=-1)
+  joints = tf.expand_dims(joints, axis=1)
+
+  #rel_joints = joints.clone() # [1, 16, 3, 1]
+  rel_joints = tf.identity(joints)
+  rel_joints[:, 1:] -= joints[:, parents[1:]]
+
+  #transforms_mat = transform_mat(
+  #    rmats.view(-1, 3, 3),
+  #    rel_joints.view(-1, 3, 1)).view(-1, joints.shape[1], 4, 4)
+
+  # TODO(Noah): I reckon tf.shape is going to do some odd things...
+  transforms_mat = transform_mat(
+      tf.reshape(rmats, (-1, 3, 3)),
+      tf.reshape(tf.reshape(rel_joints, (-1, 3, 1)), (-1, tf.shape(joints), 4, 4) )
+  )
+
+  transform_chain = [transforms_mat[:, 0]]
+  for i in range(1, parents.shape[0]):
+      # Subtract the joint location at the rest pose
+      # No need for rotation, since it's identity when at rest
+      # curr_res = torch.matmul(transform_chain[parents[i]],
+      #                        transforms_mat[:, i])
+      curr_res = tf.linalg.matmul(transform_chain[parents[i]], transforms_mat[:, i])
+      transform_chain.append(curr_res)
+
+  transforms = tf.stack(transform_chain, axis=1)
+
+  # The last column of the transformations contains the posed joints
+  posed_joints = transforms[:, :, :3, 3]
+
+  joints_homogen = tf.pad(joints, tf.constant([[0, 0], [0, 1]]))
+
+  rel_transforms = transforms - tf.pad(
+    tf.linalg.matmul(transforms, joints_homogen), 
+    tf.constant([ [3, 0], [0, 0], [0, 0], [0, 0]]))
+
+  return posed_joints, rel_transforms
+
+def lbs(beta, pose, V_, K_, S_, P_, J_, W_):
+  # Get batch size
+  bs = tf.shape(beta)[0]
+
+  # Add shape contribution
+  v_shaped = V_ + blend_shape(beta, S_) # [bs, 778, 3]
+
+  # Get rest posed joints locations
+  # NxJx3 array
+  #j_rest = vertices2joints(v_shaped, J_).contiguous() # [bs, 16, 3]
+  j_rest = vertices2joints(v_shaped, J_) # [bs, 16, 3]
+
+  # Add pose blend shapes
+  # To convert 3 by 1 axis angle to 3 by 3 rotation matrix
+  # Note: pose [bs, 16, 3] reshape to [bs*16, 3] for batch rodrigues
+  #eye3 = torch.eye(3, dtype=torch.float32, device=device) # Identity matrix
+  eye3 = tf.eye(3, dtype=tf.float32)
+  # rmats = batch_rodrigues(pose.view(-1, 3)).view(bs, -1, 3, 3) # [bs, 16, 3, 3]
+  # pose_feature [bs, 135] where 135 = 15*9
+  # pose_feature = (rmats[:, 1:, :, :] - eye3).view([bs, -1])
+  # pose_offsets [bs, 135] matmul [135, 778*3] = [bs, 778*3] -> [bs, 778, 3]
+  # pose_offsets = torch.matmul(pose_feature, P_).view(bs, -1, 3)
+  # v_posed      = v_shaped + pose_offsets # [bs, 778, 3]
+
+  # Get global joint location
+  # j_transformed [bs, 16, 3], A [bs, 16, 4, 4]
+  #j_transformed, A = batch_rigid_transform(rmats, j_rest, K_) 
+
+  # Do skinning
+  #W = W_.unsqueeze(dim=0).expand([bs, -1, -1]) # [bs, 778, 16]
+  # W[bs, 778, 16] matmul A[bs, 16, 16] = [bs, 778, 16] 
+  # -> reshape to [bs, 778, 4, 4]
+  #T = torch.matmul(W, A.view(bs, -1, 16)).view(bs, -1, 4, 4) # [bs, 778, 4, 4]
+
+  #ones = torch.ones([bs, v_posed.shape[1], 1], 
+  #    dtype=torch.float32, device=device) # [bs, 778, 1]
+  #v_posed_homo = torch.cat([v_posed, ones], dim=2) # [bs, 778, 4]
+  # T[bs, 778, 4, 4] matmul v_posed_homo unsqueeze [bs, 778, 4, 1]
+  #v_homo = torch.matmul(T, torch.unsqueeze(v_posed_homo, dim=-1)) # [bs, 778, 4, 1]
+
+  #vertices = v_homo[:, :, :3, 0] # [bs, 778, 3]
+
+  #return vertices, j_transformed
+  pass
+
 
 import pickle
 
@@ -7,23 +210,20 @@ import pickle
 
 # Noah + Maddie
 
-# TODO: Implement
-def lbs(mesh, kinematicTree, pose, weights):
-  return mesh
-
-class MANO_Model:
+class MANO_Model(Model):
   
   # TODO(Noah): We probably need to extend some sort of class from Tensorflow
   # to make a layer.
-  def __init__(self):
+  def __init__(self, mano_dir, verbose=False):
+    super(MANO_Model, self).__init__()
     
     # --- Load in learned mano paramaters ---
-    file_path = "MANO_RIGHT.pkl"
+    file_path = os.path.join(mano_dir, "models", "MANO_RIGHT.pkl")
     manoRight = pickle.load(open(file_path, 'rb'), encoding='latin1')
 
     self.V = manoRight['v_template']          # Vertices of template model (V), Shape=(778, 3), type=uint32
     self.F = manoRight['f']                   # Faces of the model (F), Shape=(1538, 3), type=uint32
-    self.K = manoRight['kintree_table'][0].   # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
+    self.K = manoRight['kintree_table'][0]   # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
     self.S = manoRight['shapedirs']           # Shape blend shapes that are learned (S), Shape=(778, 3, 10), type=float64
     self.P = manoRight['posedirs']            # Pose blend shapes that are learned (P), Shape=(778, 3, 135), type=float64
     self.J = manoRight['J_regressor']         # Joint regressor that are learned (J), Shape=(16,778), type=float64
@@ -31,7 +231,7 @@ class MANO_Model:
     self.C = manoRight['hands_components']    # Components of hand PCA (C), Shape=(45, 45), type=float64
     self.M = manoRight['hands_mean']          # Mean hand PCA pose (M), Shape=(45,), type=float64
 
-    # convert loaded params to Numpy
+    # Convert loaded params to Numpy
     self.V = np.array(self.V, dtype=np.float32)
     self.F = np.array(self.F, dtype=np.int32) # Need to convert from uint32 to int32 to allow interation in v0 = vertices[:, self.F[:,0],:] # [bs, 1538, 3]    
     self.S = np.array(self.S, dtype=np.float32)
@@ -132,12 +332,12 @@ class MANO_Model:
 
     # self.ReLU = 
 
-    print('MANO Diffentiable Layer Loaded')
+    print('MANO Differentiable Layer Loaded')
   
   
   # NOTE(Noah): I have absolutely no idea how this works. But, I am just going to take it as
   # it is, because this is just pure numpy, Python, and opencv code. No PyTorch in sight here.
-  def generate_Zmat(S, V, J):
+  def generate_Zmat(self, S, V, J):
     Z = np.zeros((23, 45))
 
     # Note: MANO pose has a total of 15 joints
@@ -201,11 +401,5 @@ class MANO_Model:
 
     return Z
 
-
-# TODO: Implement
-def MANO_LAYER(inputs):
-
-  # make sure to map alpha pose (23) to theta MANO pose params (45)
-  # the matrix is prob in the mobilehand repo
-
-  return inputs
+  def call(self, x, training=False):
+    return x
