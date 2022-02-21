@@ -4,7 +4,7 @@
 - <a href="/TODO.md#project-definition">Project Definition</a> 
 - <a href="/TODO.md#the-mission">Mission Statement</a> 
 - <a href="/TODO.md#original-timeline">Original Timeline</a> 
-- <a href="/TODO.md#currentrevised-timeline---20220126">Revised Timeline</a>
+- <a href="/TODO.md#current-timeline">Revised Timeline</a>
 - <a href="/TODO.md#todo">TODO</a>
 
 # Project Definition
