@@ -1,11 +1,11 @@
 
 # Links
 - <a href="https://linktr.ee/noahcabral">Linktree</a> 
-- <a href="/#project-definition">Project Definition</a> 
-- <a href="/#the-mission">Mission Statement</a> 
-- <a href="/#original-timeline">Original Timeline</a> 
-- <a href="/#currentrevised-timeline---20220126">Revised Timeline</a>
-- <a href="/#todo">TODO</a>
+- <a href="/TODO.md#project-definition">Project Definition</a> 
+- <a href="/TODO.md#the-mission">Mission Statement</a> 
+- <a href="/TODO.md#original-timeline">Original Timeline</a> 
+- <a href="/TODO.md#currentrevised-timeline---20220126">Revised Timeline</a>
+- <a href="/TODO.md#todo">TODO</a>
 
 # Project Definition
 - Generate a 3D mesh + 21 keypoints of two-hands through high hand-to-hand and hand-to-object contact. 
@@ -35,7 +35,7 @@ We keep a lab notebook of all our progress.
 
 We didn't actually start this from the beginning of the project, so it may not include a complete and accurate picture of our efforts.
 
-The most up-to-date version of our project is <a href="/HandTracking.ipynb">this Jupyter Notebook</a>.
+The most up-to-date version of our project is hosted in this Github repository. Access the primary Jupyter notebook <a href="src/HandTracking.ipynb">here</a>.
 
 Our midterm project presentation can be accessed <a href="https://docs.google.com/presentation/d/1TA6MvU6VWnCx7TWTQFaYR-NhMFc4iGwGTj08Lq5pFxI/edit?usp=sharing">here</a> 
 
@@ -49,6 +49,53 @@ Our midterm project presentation can be accessed <a href="https://docs.google.co
   - What (libraries used).
   - When (by when should it be done).
   - Why (larger picture of task in project).
+
+# Current Timeline
+
+NOTE: Schedule is to be modified as we continue to learn more \
+about the exact specifics with the rest of the work to be done.
+
+## Revised Scope
+- No longer caring about the estimation under hand-to-object and hand-to-hand contact.
+- And thus sticking with just the RHD (Rendered Hand Pose dataset).
+- The concern is then, "How do we still do research?"
+  - "One step at a time". If we can do the mimized scope sufficiently fast, we can look into doing more.
+  - Asynchronously brainstorm answers to this question.
+  - Asynchronously braintorm novel architectures to solve the problem as opposed to going with an existing implementation.
+  - Keep on top of the our lab notebook.
+
+## TODO
+  
+- Final goal is, implement the following model: <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
+- There will be a 3-step plan in implementing this:
+  - Step 1: Implement <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a>
+  - Step 2: Add stacked hourglass to generate heatmaps as seen in both
+      - <a href="https://arxiv.org/pdf/1902.09305.pdf">End-to-end Hand Mesh Recovery from a Monocular RGB Image</a>
+      - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
+  - Step 3: Converge on the final model as seen in <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>, or any other chosen paper.
+
+- Maybe:
+  - Understand the current architecture before "deleting" it
+  - And figure out why our efforts prior to UNET used so much memory.
+- Add a rending routine for MANO-defined hands (for the purpose of supporting the future demo).
+  - This Github repo may be useful: https://github.com/ikalevatykh/mano_pybullet
+- Transition to using Google Cloud Storage as opposed to Google Drive for hosting the dataset.
+  - This is so that everyone does not need to upload the dataset to their own drive.
+
+## February
+- Complete step 1 and 2 of the plan.
+- Potentially begin working on demo.
+- Setup Google Cloud for dataset hosting.
+
+## March
+
+- Complete Step 3 of plan.
+- Finalize paper.
+- Finishing touches on demo.
+
+## Early April
+- ATTEND CUCAI AND FLEX 🔥🔥🔥🔥.
+
 
 # Original Timeline
 
@@ -78,75 +125,3 @@ Our midterm project presentation can be accessed <a href="https://docs.google.co
 - Finalize paper. 
 - Prepare demo.
 - ATTEND CUCAI AND FLEX 🔥🔥🔥🔥.
-
-
-# Current/Revised Timeline - 2022.01.26
-
-NOTE: Schedule is to be modified as we continue to learn more \
-about the exact specifics with the rest of the work to be done.
-
-## Revised Scope
-- No longer caring about the estimation under hand-to-object and hand-to-hand contact.
-- And thus sticking with just the RHD (Rendered Hand Pose dataset).
-- The concern is then, "How do we still do research?"
-  - "One step at a time". If we can do the mimized scope sufficiently fast, we can look into doing more.
-  - Asynchronously brainstorm answers to this question.
-  - Asynchronously braintorm novel architectures to solve the problem as opposed to going with an existing implementation.
-  - Keep on top of the our lab notebook. 
-
-## January
-- Meeting 1
-  - Render a MANO hand in a PyTorch simulation -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>
-  - Begin reading <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a> -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span> 
-## February
-- Wk1
-  - Asynchronously: Google Cloud   
-  - Meeting 1
-    - Continue reading <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a>. Potenentially implement.
-  - Meeting 2
-    - Finish implementation.
-- Wk2
-  - Asynchronously: Google Cloud 
-  - Meeting 1
-    - Begin Step 2 of plan: Add stacked hourglass to generate heatmaps as seen in both
-      - <a href="https://arxiv.org/pdf/1902.09305.pdf">End-to-end Hand Mesh Recovery from a Monocular RGB Image</a>
-      - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
-  - Meeting 2
-    - Continue Step 2 
-- Wk3
-  - Asynchronosouly: Demo
-- Wk4
-  - Asynchronosouly: Demo
-
-## March
-- Buffer time to complete unfinished tasks.
-- What things must be done during this month will be defined more as the progress in Febuary progresses.
-
-## Early April
-- Finalize paper.
-- Demo finishing touches.
-- ATTEND CUCAI AND FLEX 🔥🔥🔥🔥.
-
-# TODO
-  
-- Final goal is, implement the following model:
-  - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
-- There will be a 3-step plan in implementing this:
-  - Step 1: Implement <a href="https://gmntu.github.io/mobilehand/.">MobileHand: Real-time 3D Hand Shape and Pose Estimation from Color Image</a>
-  - Step 2: Add stacked hourglass to generate heatmaps as seen in both
-      - <a href="https://arxiv.org/pdf/1902.09305.pdf">End-to-end Hand Mesh Recovery from a Monocular RGB Image</a>
-      - <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>
-  - Step 3: Converge on the final model as seen in <a href="https://openaccess.thecvf.com/content_CVPR_2019/papers/Ge_3D_Hand_Shape_and_Pose_Estimation_From_a_Single_RGB_CVPR_2019_paper.pdf">3D Hand Pose and Shape Estimation from a single RGB Image</a>, or any other chosen paper.
-
-- Maybe:
-  - Understand the current architecture before "deleting" it -> <span style="color:green;">COMPLETE<span style="color:red">-ish</span></span>
-  - And figure out why our efforts prior to UNET used so much memory.
-- Add a rending routine for MANO-defined hands
-  - This Github repo may be useful: https://github.com/ikalevatykh/mano_pybullet
-- Transition to using Google Cloud Storage as opposed to Google Drive for hosting the dataset.
-  - This is so that everyone does not need to upload the dataset to their own drive.
-- Model Architecture:
-  - Keypoint estimation.
-  - MANO parameter estimation for hand mesh prediction.
-
-
