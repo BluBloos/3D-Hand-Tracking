@@ -12,7 +12,7 @@ _mse = tf.keras.losses.MeanSquaredError()
 
 # TODO: Implement.
 def LOSS_3D(pred, gt):
-  #MSE = np.square(np.subtract(pred,gt)).mean()
+  # MSE = np.square(np.subtract(pred,gt)).mean()
   # NOTE(Noah): Right now, predictions are not put through MANO layer, so we need to shrink our
   # vector to be of shape (21, 3)
   paddings = tf.constant([[0,0], [0, (21 * 3) - 39]])
