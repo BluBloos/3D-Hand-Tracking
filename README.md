@@ -21,7 +21,7 @@ Input image, Ground truth segmentation mask, Model prediction
 <img width="264" alt="Screen Shot 2021-12-08 at 4 51 33 PM" src="https://user-images.githubusercontent.com/38915815/145290292-f546ce0f-7178-49d0-9504-8d227f0ebacc.png">
 </div>
 
-# How to Use
+# Steps for Using
 
 Simply clone the repo and run all code blocks in src/HandTracking.ipynb. Pay careful attention to any comments at the top of the code blocks, as some are only meant to run when using the project from within Google Colab. 
 
