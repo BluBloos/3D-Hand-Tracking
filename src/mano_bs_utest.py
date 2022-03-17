@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     try:
         # Here we load in the learned MANO parameters.
-        mano_dir = "../mano_v1_2"
-        file_path = os.path.join(mano_dir, "models", "MANO_RIGHT.pkl")
+        mano_dir = "mano_v1_2"
+        file_path = os.path.join("..", mano_dir, "models", "MANO_RIGHT.pkl")
         manoRight = pickle.load(open(file_path, 'rb'), encoding='latin1')
     except Exception as e:
         print("Oops! Something went wrong.\n\
