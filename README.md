@@ -27,6 +27,7 @@ Input image, Ground truth segmentation mask, Model prediction
 
 ## Visualization of a Hand Undergoing Shape Pertubations
 
+https://user-images.githubusercontent.com/38915815/159188994-a64a9072-527f-4f86-8c99-30126ed9a7ab.mov
 
 # Steps for Using
 
