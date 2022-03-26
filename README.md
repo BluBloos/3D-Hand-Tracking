@@ -9,6 +9,8 @@ This project is still under development - for anything regarding this project, s
 
 # Preliminary Results
 
+## Estimation of Segmentation Masks via UNET
+
 Below we present our preliminary results, that being an implementation of UNET to predict the segmentation mask of images from the <a href="https://lmb.informatik.uni-freiburg.de/resources/datasets/RenderedHandposeDataset.en.html">RHD dataset</a>.
 
 Pictured from Left -> Right
@@ -21,9 +23,27 @@ Input image, Ground truth segmentation mask, Model prediction
 <img width="264" alt="Screen Shot 2021-12-08 at 4 51 33 PM" src="https://user-images.githubusercontent.com/38915815/145290292-f546ce0f-7178-49d0-9504-8d227f0ebacc.png">
 </div>
 
+</br>
+
+## Visualization of a Hand Undergoing Shape Pertubations
+
+Our current efforts involve generating our own implementation of MobileHand. We are writing in the routines for generating a hand mesh via the differentiable hand model MANO.
+
+https://user-images.githubusercontent.com/38915815/159188994-a64a9072-527f-4f86-8c99-30126ed9a7ab.mov
+
 # Steps for Using
 
 Simply clone the repo and run all code blocks in src/HandTracking.ipynb. Pay careful attention to any comments at the top of the code blocks, as some are only meant to run when using the project from within Google Colab. 
+
+## Paper
+
+To build the paper via LaTeX, you will need to install an appropriate Tex distribution on your system. See https://www.overleaf.com/learn/latex/Choosing_a_LaTeX_Compiler.
+
+Simply navigate to the paper subdirectory and run,
+
+```
+./build.sh
+```
 
 
 

@@ -43,13 +43,19 @@ if __name__ == "__main__":
 
         vis = o3d.visualization.Visualizer()
         vis.create_window()
-        mesh = o3d.geometry.TriangleMesh()
-        mesh.triangles = o3d.utility.Vector3iVector(F)
+        
+        # create the meshes
         mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        vis.add_geometry(mesh)
-        vis.add_geometry(mesh_frame)
+        vis.add_geometry(mesh_frame)  
+        meshes = []
+        for i in range(5):
+          mesh = o3d.geometry.TriangleMesh()
+          mesh_t = (0.1 + i * 0.1) * np.ones([778, 3])
+          mesh.triangles = o3d.utility.Vector3iVector(F)  
+          vis.add_geometry(mesh)
+          meshes.append((mesh, mesh_t))
 
-        beta = tf.zeros([1, 10])
+        beta = tf.zeros([5, 10])
         frame_count = 0
 
         globalRunning = True
@@ -57,16 +63,21 @@ if __name__ == "__main__":
             # Now we want to generate some random blend shapes. Let's start with no pertubations at all.
             if (frame_count >= 30):
                 frame_count = 0
-                beta = tf.random.normal([1, 10])
+                beta = tf.random.normal([5, 10])
             
             # Generate the mesh by applying pertubations due to beta params.
-            T_posed = T_bar + blend_shape(beta, S)
+            T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[5], axis=0)
+            T_posed_batched = T_bar_batched + blend_shape(beta, S)
 
-            # Re-generate the hand, update mesh, and update renderer. 
-            mesh.vertices = o3d.utility.Vector3dVector(T_posed.numpy()[0,:,:])
-            mesh.compute_vertex_normals()
-            mesh.paint_uniform_color([0.75, 0.75, 0.75])
-            vis.update_geometry(mesh)
+            # Re-generate all hands from the batch, 
+            # update the meshes, and update the renderer.
+            for i in range(5):
+              mesh, mesh_t = meshes[i]
+              mesh.vertices = o3d.utility.Vector3dVector(T_posed_batched.numpy()[i,:,:] + mesh_t) 
+              mesh.compute_vertex_normals()
+              mesh.paint_uniform_color([0.75, 0.75, 0.75])
+              vis.update_geometry(mesh)
+            
             vis.poll_events()
             vis.update_renderer()
 
