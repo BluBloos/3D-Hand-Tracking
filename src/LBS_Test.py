@@ -1,6 +1,7 @@
 # Authored by Lucas Coster
 # Test for the MANO Linear Blend Skinning functions
 
+from fnmatch import translate
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import Model
@@ -52,17 +53,26 @@ def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
 
 def transform_matrix(R, t):
-    # TODO(Noah): This is not going to work.
-    return tf.concat ([tf.pad(R, [0,0,0,1]), tf.pad(t, [0,0,0,1], value=1)],axis=2)
+    T = tf.concat([R,t], axis=2) # 3x4 (3 rows, 4 columns)
+    return T
+    '''
+    tf.pad(T,[0,0,0,1])
+    return T
+    return tf.concat ([
+        tf.pad(R, [0,0,0,1]), 
+        tf.pad(t, [0,0,0,1], value=1)
+        ], axis=2)
+    '''
 
 def batch_rigid_transform(rmats, joints, parents):
     # applies a batch of rigid transforms to the joints
     # input rotation matrices
     # input joint locations
     # input kinematic trees of each object
-
     # output joint locations after applying the pose rotations
     # output transforms with respect to root joints
+
+    bs = joints.shape[0]
 
     # print("parents", parents)
     # print("joints", joints)
@@ -71,7 +81,8 @@ def batch_rigid_transform(rmats, joints, parents):
     # tf.gather(joints, axis=[])
     # tf.gather(parents, axis=[0])
 
-    rel_joints = tf.squeeze(tf.identity(joints)[:, 1:], axis=3)
+    #rel_joints = tf.squeeze(tf.identity(joints)[:, 1:], axis=3)
+    rel_joints = tf.identity(joints)
 
     # conceptually, we want to for each batch, 
     # take each joint and subtract from it the position of the parent joint.
@@ -82,12 +93,19 @@ def batch_rigid_transform(rmats, joints, parents):
     # print("tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:])", tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:]))
     # print("tf.gather( joints[:, 1:], indices=parents[1:], axis=1)", tf.gather( joints[:, 1:], indices=parents[1:], axis=1))
 
-    rel_joints -= tf.squeeze(tf.gather(joints[:, :], indices=parents[1:], axis=1), axis=3)
+    #rel_joints -= tf.concat([
+    #        tf.squeeze(tf.gather(joints[:, :], indices=parents[1:], axis=1), axis=3),
+    #        tf.zeros((bs, 3), dtype=tf.float32)
+    #    ], axis=0)
+
+    parents -= tf.concat([ tf.constant([4294967295], dtype=tf.int64), tf.zeros( (15), dtype=tf.int64 ) ], axis=0)
+    print("parents", parents)
+    rel_joints -= tf.gather(joints[:, :], indices=parents, axis=1)
 
     print("rel_joints", rel_joints)
 
-
-    # transforms_matrix = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
+    tm = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
+    print("transforms_matrix", tm)
     # transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
 
     # transform_chain = [transforms_matrix[:,0]]
