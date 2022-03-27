@@ -37,7 +37,8 @@ def lbs(pose, J_, K_, W_, V_):
 
     # do skinning
     W = W_.expand([bs, -1, -1])
-    T = tf.matmul(W, A.view(bs, -1, 16)).view(bs, -1, 4, 4)
+    T = tf.matmul(W, tf.reshape(A,(bs, -1, 16)))
+    T = tf.reshape(T, (bs, -1, 4, 4))
 
     ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
     v_posed_homo = tf.concat([v_posed, ones], dim=2)
@@ -74,7 +75,8 @@ def batch_rigid_transform(rmats, joints, parents):
     rel_joints = joints.clone()
     rel_joints[:, 1:] -= joints[:, parents[1:]]
 
-    transforms_matrix = transform_matrix(rmats.view(-1, 3, 3), rel_joints.view(-1, 3, 1)).view(-1, joints.shape[1], 4, 4)
+    transforms_matrix = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
+    transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4))                     
 
     transform_chain = [transforms_matrix[:,0]]
 
