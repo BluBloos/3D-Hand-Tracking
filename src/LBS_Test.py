@@ -24,7 +24,7 @@ def lbs(pose, J_, K_, W_, V_):
     #add pose blend
     #3 by 1 axis angle to 3 by 3 rotation matrix
     # eye3 = tf.eye(3, dtype=tf.float32)
-    rmatrix = rodrigues(pose.view(-1,3).view(bs,-1,3,3))
+    rmatrix = tf.reshape(rodrigues(tf.reshape(pose,(-1,3)),(bs,-1,3,3))
 
     #pose feature
     # pose_feature = (rmatrix[:, 1:, :, :] - eye3).view([bs, -1])
