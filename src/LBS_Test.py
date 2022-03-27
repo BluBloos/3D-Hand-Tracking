@@ -24,7 +24,7 @@ def lbs(pose, J_, K_, W_, V_):
     #add pose blend
     #3 by 1 axis angle to 3 by 3 rotation matrix
     # eye3 = tf.eye(3, dtype=tf.float32)
-    rmatrix = tf.reshape(rodrigues(tf.reshape(pose,(-1,3)),(bs,-1,3,3))
+    rmatrix = tf.reshape(rodrigues(tf.reshape(pose,(-1,3))),(bs,-1,3,3))
 
     #pose feature
     # pose_feature = (rmatrix[:, 1:, :, :] - eye3).view([bs, -1])
@@ -41,8 +41,8 @@ def lbs(pose, J_, K_, W_, V_):
     T = tf.reshape(T, (bs, -1, 4, 4))
 
     ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
-    v_posed_homo = tf.concat([v_posed, ones], dim=2)
-    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, dim = -1))
+    v_posed_homo = tf.concat([v_posed, ones], axis=2)
+    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, axis = -1))
 
     vertices = v_homo[:, :, :3, 0]
 
@@ -57,7 +57,7 @@ def blend_shape(beta, S_):
     return tf.einsum ('bvt,jv->bjt', beta, S_)
 
 def transform_matrix(R, t):
-    return tf.concat ([F.pad(R, [0,0,0,1]), F.pad(t, [0,0,0,1], value=1)],dim=2)
+    return tf.concat ([F.pad(R, [0,0,0,1]), F.pad(t, [0,0,0,1], value=1)],axis=2)
 
 def batch_rigid_transform(rmats, joints, parents):
 
@@ -70,13 +70,13 @@ def batch_rigid_transform(rmats, joints, parents):
     #output joint locations after applying the pose rotations
     #output transforms with respect to root joints
 
-    joints = tf.expand_dims(joints, dim=-1)
+    joints = tf.expand_dims(joints, axis =-1)
 
-    rel_joints = joints.clone()
+    rel_joints = tf.identity(joints)
     rel_joints[:, 1:] -= joints[:, parents[1:]]
 
     transforms_matrix = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
-    transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4))                     
+    transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
 
     transform_chain = [transforms_matrix[:,0]]
 
@@ -85,7 +85,7 @@ def batch_rigid_transform(rmats, joints, parents):
         curr_res = tf.matmul(transform_chain[parents[i]],transforms_matrix[:,i])
         transform_chain.append(curr_res)
 
-    transforms = tf.stack(transform_chain, dim=1)
+    transforms = tf.stack(transform_chain, axis=1)
 
     #the last coloumn of the transfer contains the posed joints
     posed_joints = transforms[:,:,3,3]
@@ -120,11 +120,11 @@ if __name__ == "__main__":
         F = np.array(manoRight['f'], dtype=np.int32)  
 
         # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
-        K = np.array(manoRight['kintree_table'][0], dtype=np.int64)
+        K = tf.convert_to_tensor(manoRight['kintree_table'][0], dtype=tf.int64)
         # Joint regressor that are learned (J), Shape=(16,778), type=float64   
-        J = np.array(manoRight['J_regressor'].todense(), dtype=np.float64)
+        J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)
         # Weights that are learned (W), Shape=(778,16), type=float64       
-        W = np.array(manoRight['weights'], dtype=np.float64)             
+        W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)             
         
         
         vis = o3d.visualization.Visualizer()
