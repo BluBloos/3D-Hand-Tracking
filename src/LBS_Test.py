@@ -36,8 +36,8 @@ def lbs(pose, J_, K_, W_, V_):
     j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
 
     # do skinning
-    W = W_.expand([bs, -1, -1])
-    T = tf.matmul(W, tf.reshape(A,(bs, -1, 16)))
+    W_bar_batched = tf.repeat(tf.expand_dims(W, axis=0), repeats=[bs], axis=0)                     
+    T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
     T = tf.reshape(T, (bs, -1, 4, 4))
 
     ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
