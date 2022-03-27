@@ -37,7 +37,7 @@ def lbs(pose, J_, K_, W_, V_):
     j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
 
     # do skinning
-    W_bar_batched = tf.repeat(tf.expand_dims(W, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
+    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
     T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
     T = tf.reshape(T, (bs, -1, 4, 4))
 
@@ -53,7 +53,11 @@ def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
 
 def transform_matrix(R, t):
+    bs = R.shape[0]
     T = tf.concat([R,t], axis=2) # 3x4 (3 rows, 4 columns)
+    row = tf.constant([[0,0,0,1]], dtype = tf.float32)
+    row_batched = tf.repeat(tf.expand_dims(row, axis=0), repeats=[bs], axis=0)
+    T = tf.concat([T,row_batched], axis = 1)
     return T
     '''
     tf.pad(T,[0,0,0,1])
@@ -187,8 +191,8 @@ def demo():
                 #beta = tf.random.normal([5, 10])
             
             # Generate the mesh by applying pertubations due to beta params.
-            T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[5], axis=0)
-            T_skinned, keypoints3D = lbs(pose, J, K, W, T_bar_batched)
+            #T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[5], axis=0)
+            T_skinned, keypoints3D = lbs(pose, J, K, W, T_bar)
 
             #T_posed_batched = T_bar_batched + blend_shape(beta, S)
 
@@ -273,7 +277,7 @@ def unit_test():
 
 if __name__ == "__main__":
 
-    # demo()
+    #demo()
 
     unit_test()
     
