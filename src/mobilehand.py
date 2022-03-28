@@ -20,12 +20,11 @@ def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
 
   m_output = mobile_net(inputs)
   reg_output = reg_module(m_output)
-  mano_output = mano_model(reg_output)
 
-  # TODO: Get the 3D keypoints from the MANO model.
-
-  # TODO:
-  # Quick and dirty visualization of the predictions versus the image.
+  beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.constant([ batch_size, 10 ]))
+  pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ batch_size, 48 ]))
+  root_trans = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ batch_size, 3 ]))
+  mano_output = mano_model(beta, pose, root_trans)
 
   return tf.keras.Model(inputs=inputs, outputs=mano_output)
 

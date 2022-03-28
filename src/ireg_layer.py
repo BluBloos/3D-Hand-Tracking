@@ -7,14 +7,14 @@ def MAKE_REGRESSION_MODULE(batch_size):
   inputs = tf.keras.layers.Input(shape=[576,])
   
   model = tf.keras.models.Sequential()
-  model.add(tf.keras.Input(shape = (615,)))
+  model.add(tf.keras.Input(shape = (637,)))
   model.add(tf.keras.layers.Dense(288, activation = 'relu'))
   model.add(tf.keras.layers.Dropout(0.5))
   model.add(tf.keras.layers.Dense(288, activation = 'relu'))
   model.add(tf.keras.layers.Dropout(0.5))
-  model.add(tf.keras.layers.Dense(39, activation = 'relu'))
+  model.add(tf.keras.layers.Dense(61, activation = 'relu'))
   
-  params = tf.zeros((batch_size,39))
+  params = tf.zeros((batch_size,61))
   model.summary()
 
   for i in range(3):
