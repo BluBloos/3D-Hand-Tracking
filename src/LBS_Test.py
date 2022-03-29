@@ -5,7 +5,6 @@ from fnmatch import translate
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import Model
-import os
 import pickle
 import time
 
@@ -13,6 +12,25 @@ from mano_bs import blend_shape
 from mano_bp import blend_pose
 from mano_bp import rmatrix_from_pose
 from rodrigues import rodrigues
+
+import sys, os
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+def enablePrint():
+    sys.stdout = sys.__stdout__
+DEBUG = True
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+def cstr(str):
+    return bcolors.OKCYAN + str + bcolors.ENDC
 
 def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
@@ -35,37 +53,91 @@ def lbs(beta, pose, J, K, W, S, P, T_bar):
 
     ### BATCH_RIGID_TRANFORM ###
     # j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
-    joints = tf.expand_dims(J_rest, axis =-1)
+    print(cstr("J_rest=\n"), J_rest)
+    joints = tf.expand_dims(J_rest, axis =-1) # converts J_rest into a batch of column vectors.
+    print(cstr("joints=\n"), joints)
     parents = K
-    rel_joints = tf.identity(joints)
-
     # TODO: Investigate if this is the right way to handle the root joint...
     parents -= tf.concat([ tf.constant([4294967295], dtype=tf.int64), tf.zeros( (15), dtype=tf.int64 ) ], axis=0)
     
+    # rel_joints is defined such that it stores the location of all joints in the coordinate space
+    # of their ancestor. This is as oposed to joints which stores the location of all joints in the
+    # global coordinate space.
+    rel_joints = tf.identity(joints)
     rel_joints -= tf.gather(joints[:, :], indices=parents, axis=1)
     
-    print("rel_joints=\n", rel_joints)
-    print("rmats=\n", rmats)
+    print(cstr("rel_joints=\n"), rel_joints)
+    print(cstr("rmats=\n"), rmats)
     tm = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
-    print("tm=\n", tm)
+    print(cstr("tm=\n"), tm)
 
     # We note that tm gets collapsed along the batch dimension (combining batches with 2nd dim)
-    
-
-
-    ### BATCH_RIGID_TRANFORM ###
+    # So we transform it back.
+    tm = tf.reshape(tm, ((-1, joints.shape[1], 4, 4)))
+    print(cstr("tm(after reintroducing batches)=\n"), tm)
 
 
     '''
+    So just reading this code...
+    They did some mathematical optimizations to make it less expressive and probably more efficient.
+    So they are not actually ever taking the inverse of a matrix.
+
+    Thus, it's my job to transform the code here to do the thing that I know that it should do.
+    '''
+
+    # my best guess right now is that the transform chain encodes 
+    # all the Gk_rest for every part k (so that we can transform first points back
+    # to origin for a relative transform).
+    transform_chain = [tm[:,0]]
+
+    for i in range(1, parents.shape[0]):
+        # subtract joint location at rest pose
+
+        curr_res = tf.matmul(transform_chain[parents[i]], tm[:,i])
+        # when we index into transform_chain like this, it's tricky. The first joint
+        # that is not the root has the root as parent, so we get index 0. 
+        # this is find during the first for loop sequence. 
+        # seems like a tricky and odd exploit of an algo going on here.
+        # Like, this code just barely works or something like that.
+        #
+        # it's like, as we go thru the indices in parent, that joint in the parent array
+        # has always been defined in the transform_chain prior.
+        #
+        # and when we index into the transform_chain like this, it means the indices
+        # of the trainsform_chain correspond to the indices as seen in the joints arr.
+        #
+        # we can look at this as taking the current transform and 
+
+
+        transform_chain.append(curr_res)
+
+    transforms = tf.stack(transform_chain, axis=1)
+
+    '''
+    
+
+    # the last coloumn of the transfer contains the posed joints
+    posed_joints = transforms[:,:,3,3]
+
+    # TODO: We want to change this from F. Definitely cannot be this.
+    joints_homogen = tf.pad(joints,[0,0,0,1])
+    rel_transforms = transforms - tf.pad(tf.matmul(transforms, joints_homogen), [3,0,0,0,0,0,0,0])
+    return posed_joints, rel_transforms
+    '''
+
+    ### BATCH_RIGID_TRANFORM ###
+
+    '''
+    # take G_k' and weight it by W.
     W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
-    T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
+    T = tf.matmul(W_bar_batched, tf.reshape(A, (bs, -1, 16)))
     T = tf.reshape(T, (bs, -1, 4, 4))
 
-    ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
-    v_posed_homo = tf.concat([v_posed, ones], axis=2)
-    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, axis = -1))
-
-    vertices = v_homo[:, :, :3, 0]
+    # run the points through T, which is the G_k' but weighted by W.
+    ones = tf.ones([bs, T_posed.shape[1],1], dtype=tf.float32)
+    T_posed_homo = tf.concat([T_posed, ones], axis=2)
+    T_homo = tf.matmul(T , tf.expand_dims(T_posed_homo, axis = -1))
+    vertices = T_homo[:, :, :3, 0]
     '''
 
     # return vertices, j_transformed
@@ -179,6 +251,11 @@ def demo():
 
 
 def unit_test():
+
+    if DEBUG:
+        enablePrint()
+    else:
+        blockPrint()
 
     manoRight = None
 
