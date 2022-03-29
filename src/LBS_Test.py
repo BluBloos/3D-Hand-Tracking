@@ -9,45 +9,10 @@ import os
 import pickle
 import time
 
+from mano_bs import blend_shape
+from mano_bp import blend_pose
+from mano_bp import rmatrix_from_pose
 from rodrigues import rodrigues
-
-def lbs(pose, J_, K_, W_, V_):
-
-    #batch size
-    bs = pose.shape[0]
-
-    #shape contribution
-    v_shaped = V_ # + blend_shape(beta, S_)
-
-    #rest posed locations 
-    j_rest = vertices2joints(v_shaped, J_)
-
-    #add pose blend
-    #3 by 1 axis angle to 3 by 3 rotation matrix
-    # eye3 = tf.eye(3, dtype=tf.float32)
-    rmatrix = tf.reshape(rodrigues(tf.reshape(pose,(-1,3))),(bs,-1,3,3))
-
-    #pose feature
-    # pose_feature = (rmatrix[:, 1:, :, :] - eye3).view([bs, -1])
-    #pose offsets
-    #pose_offsets = tf.matmul(pose_feature, P_).view(bs,-1,3)
-    v_posed = v_shaped # + pose_offsets
-
-    #get global joint location
-    j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
-
-    # do skinning
-    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
-    T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
-    T = tf.reshape(T, (bs, -1, 4, 4))
-
-    ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
-    v_posed_homo = tf.concat([v_posed, ones], axis=2)
-    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, axis = -1))
-
-    vertices = v_homo[:, :, :3, 0]
-
-    return vertices, j_transformed
 
 def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
@@ -59,59 +24,55 @@ def transform_matrix(R, t):
     row_batched = tf.repeat(tf.expand_dims(row, axis=0), repeats=[bs], axis=0)
     T = tf.concat([T,row_batched], axis = 1)
     return T
-    '''
-    tf.pad(T,[0,0,0,1])
-    return T
-    return tf.concat ([
-        tf.pad(R, [0,0,0,1]), 
-        tf.pad(t, [0,0,0,1], value=1)
-        ], axis=2)
-    '''
 
-def batch_rigid_transform(rmats, joints, parents):
-    # applies a batch of rigid transforms to the joints
-    # input rotation matrices
-    # input joint locations
-    # input kinematic trees of each object
-    # output joint locations after applying the pose rotations
-    # output transforms with respect to root joints
+def lbs(beta, pose, J, K, W, S, P, T_bar):
 
-    bs = joints.shape[0]
+    bs = pose.shape[0]
+    T_shaped = T_bar + blend_shape(beta, S)
+    J_rest = vertices2joints(T_shaped, J)
+    T_posed = T_shaped + blend_pose(pose, P)
+    rmats = rmatrix_from_pose(pose)
 
-    # print("parents", parents)
-    # print("joints", joints)
-    joints = tf.expand_dims(joints, axis =-1)
-
-    # tf.gather(joints, axis=[])
-    # tf.gather(parents, axis=[0])
-
-    #rel_joints = tf.squeeze(tf.identity(joints)[:, 1:], axis=3)
+    ### BATCH_RIGID_TRANFORM ###
+    # j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
+    joints = tf.expand_dims(J_rest, axis =-1)
+    parents = K
     rel_joints = tf.identity(joints)
 
-    # conceptually, we want to for each batch, 
-    # take each joint and subtract from it the position of the parent joint.
-    
-    # print("parents[1:]", parents[1:])
-    # print("joints[:, 1:]", joints[:, 1:])
-    # print("tf.squeeze(joints[:, 1:], axis=3)", tf.squeeze(joints[:, 1:], axis=3))
-    # print("tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:])", tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:]))
-    # print("tf.gather( joints[:, 1:], indices=parents[1:], axis=1)", tf.gather( joints[:, 1:], indices=parents[1:], axis=1))
-
-    #rel_joints -= tf.concat([
-    #        tf.squeeze(tf.gather(joints[:, :], indices=parents[1:], axis=1), axis=3),
-    #        tf.zeros((bs, 3), dtype=tf.float32)
-    #    ], axis=0)
-
+    # TODO: Investigate if this is the right way to handle the root joint...
     parents -= tf.concat([ tf.constant([4294967295], dtype=tf.int64), tf.zeros( (15), dtype=tf.int64 ) ], axis=0)
-    print("parents", parents)
+    
     rel_joints -= tf.gather(joints[:, :], indices=parents, axis=1)
-
-    print("rel_joints", rel_joints)
-
+    
+    print("rel_joints=\n", rel_joints)
+    print("rmats=\n", rmats)
     tm = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
-    print("transforms_matrix", tm)
-    # transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
+    print("tm=\n", tm)
 
+    # We note that tm gets collapsed along the batch dimension (combining batches with 2nd dim)
+    
+
+
+    ### BATCH_RIGID_TRANFORM ###
+
+
+    '''
+    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
+    T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
+    T = tf.reshape(T, (bs, -1, 4, 4))
+
+    ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
+    v_posed_homo = tf.concat([v_posed, ones], axis=2)
+    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, axis = -1))
+
+    vertices = v_homo[:, :, :3, 0]
+    '''
+
+    # return vertices, j_transformed
+
+
+def batch_rigid_transform(rmats, joints, parents):
+    # transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
     # transform_chain = [transforms_matrix[:,0]]
 
     '''
@@ -129,6 +90,7 @@ def batch_rigid_transform(rmats, joints, parents):
     joints_homogen = tf.pad(joints,[0,0,0,1])
     rel_transforms = transforms - tf.pad(tf.matmul(transforms, joints_homogen), [3,0,0,0,0,0,0,0])
     '''
+    pass
 
 import open3d as o3d
 
@@ -235,21 +197,30 @@ def unit_test():
 
         S = tf.convert_to_tensor(manoRight['shapedirs'], dtype=tf.float32) # shape of S is (778, 3, 10)
         T_bar = tf.convert_to_tensor(manoRight['v_template'], dtype=tf.float32) # shape of (778, 3)
-        F = np.array(manoRight['f'], dtype=np.int32)  
+        F = np.array(manoRight['f'], dtype=np.int32) 
+        P = tf.convert_to_tensor(manoRight['posedirs'] , dtype=tf.float32)
+
         # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
         K = tf.convert_to_tensor(manoRight['kintree_table'][0], dtype=tf.int64)
+        
         # Joint regressor that are learned (J), Shape=(16,778), type=float64   
         J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)
+        
         # Weights that are learned (W), Shape=(778,16), type=float64       
         W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)
 
-        #vis = o3d.visualization.Visualizer()
-        #vis.create_window()
+
+        # vis = o3d.visualization.Visualizer()
+        # vis.create_window()
 
         batch_size = 1
-        pose = tf.zeros([batch_size,16,3])
-        bs = pose.shape[0] # batch size.
+        beta = tf.zeros([batch_size, 10])
+        pose = tf.zeros([batch_size, 16, 3])
         T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
+        
+        lbs(beta, pose, J, K, W, S, P, T_bar_batched)
+        
+        '''
         j_rest = vertices2joints(T_bar_batched, J)
         # whenever we do a -1 in a reshape, this set the dimension size to whatever it needs to be
         # so that we preserve the size before reshaping.
@@ -257,7 +228,7 @@ def unit_test():
         print("rmatrix", rmatrix)
         batch_rigid_transform(rmatrix, j_rest, K)
 
-        '''# create the meshes
+        # create the meshes
         mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         vis.add_geometry(mesh_frame)  
         
