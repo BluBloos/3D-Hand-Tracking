@@ -29,7 +29,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-def cstr(str):
+def cstr(str): # cyan string
     return bcolors.OKCYAN + str + bcolors.ENDC
 
 def vertices2joints(vert, J_):
@@ -49,7 +49,8 @@ def lbs(beta, pose, J, K, W, S, P, T_bar):
     T_shaped = T_bar + blend_shape(beta, S)
     J_rest = vertices2joints(T_shaped, J)
     T_posed = T_shaped + blend_pose(pose, P)
-    rmats = rmatrix_from_pose(pose)
+    #rmats = rmatrix_from_pose(pose)
+    rmats = tf.eye(3, num_columns=3, batch_shape=[bs, 16], dtype=tf.float32)
 
     ### BATCH_RIGID_TRANFORM ###
     # j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
@@ -76,46 +77,32 @@ def lbs(beta, pose, J, K, W, S, P, T_bar):
     tm = tf.reshape(tm, ((-1, joints.shape[1], 4, 4)))
     print(cstr("tm(after reintroducing batches)=\n"), tm)
 
-
-    '''
-    So just reading this code...
-    They did some mathematical optimizations to make it less expressive and probably more efficient.
-    So they are not actually ever taking the inverse of a matrix.
-
-    Thus, it's my job to transform the code here to do the thing that I know that it should do.
-    '''
-
-    # my best guess right now is that the transform chain encodes 
-    # all the Gk_rest for every part k (so that we can transform first points back
-    # to origin for a relative transform).
-    transform_chain = [tm[:,0]]
-
-    for i in range(1, parents.shape[0]):
-        # subtract joint location at rest pose
-
-        curr_res = tf.matmul(transform_chain[parents[i]], tm[:,i])
-        # when we index into transform_chain like this, it's tricky. The first joint
-        # that is not the root has the root as parent, so we get index 0. 
-        # this is find during the first for loop sequence. 
-        # seems like a tricky and odd exploit of an algo going on here.
-        # Like, this code just barely works or something like that.
-        #
-        # it's like, as we go thru the indices in parent, that joint in the parent array
-        # has always been defined in the transform_chain prior.
-        #
-        # and when we index into the transform_chain like this, it means the indices
-        # of the trainsform_chain correspond to the indices as seen in the joints arr.
-        #
-        # we can look at this as taking the current transform and 
-
-
-        transform_chain.append(curr_res)
-
-    transforms = tf.stack(transform_chain, axis=1)
-
-    '''
     
+    # So this is Gk as seen in SMPL paper but as a Python list.
+    #
+    # What happens in the formulation of Gk here is that the joints array is defined
+    # such that for any ith joint in the list, the parent will have some index i_prime that
+    # is less than i. So the parents always come first.
+    # otherwise we would get indexing errors into the code below.
+    #
+    # and if we think for a moment about what the code below is doing?
+    # it is building the Gk for each k part, and it is does this by continually
+    # climbing up the ancestor chain.
+    Gk_pylist = [ tm[:,0] ]
+    for i in range(1, parents.shape[0]):
+        Gk_pylist.append( tf.matmul(Gk_pylist[parents[i]], tm[:,i]) )
 
+    print(cstr("Gk_pylist=\n"), Gk_pylist)
+    Gk = tf.stack(Gk_pylist, axis=1)
+    print(cstr("Gk=\n"), Gk)
+
+    # Why is it that these are actually the posed_joints?
+    # because the joints are already in their own ref frame.
+    posed_joints = tf.slice( Gk[:, :, :, 3], [0, 0, 0], [bs, 16, 3])
+    #posed_joints = Gk[:, :, :, 3]
+    print(cstr("posed_joints"), posed_joints)
+
+    '''
     # the last coloumn of the transfer contains the posed joints
     posed_joints = transforms[:,:,3,3]
 
@@ -141,28 +128,6 @@ def lbs(beta, pose, J, K, W, S, P, T_bar):
     '''
 
     # return vertices, j_transformed
-
-
-def batch_rigid_transform(rmats, joints, parents):
-    # transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
-    # transform_chain = [transforms_matrix[:,0]]
-
-    '''
-    for i in range(1, parents.shape[0]):
-        # subtract joint location at rest pose
-        curr_res = tf.matmul(transform_chain[parents[i]],transforms_matrix[:,i])
-        transform_chain.append(curr_res)
-
-    transforms = tf.stack(transform_chain, axis=1)
-
-    # the last coloumn of the transfer contains the posed joints
-    posed_joints = transforms[:,:,3,3]
-
-    # TODO: We want to change this from F. Definitely cannot be this.
-    joints_homogen = tf.pad(joints,[0,0,0,1])
-    rel_transforms = transforms - tf.pad(tf.matmul(transforms, joints_homogen), [3,0,0,0,0,0,0,0])
-    '''
-    pass
 
 import open3d as o3d
 
