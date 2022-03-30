@@ -177,62 +177,85 @@ def demo():
         T_bar = tf.convert_to_tensor(manoRight['v_template'], dtype=tf.float32) # shape of (778, 3)
         F = np.array(manoRight['f'], dtype=np.int32) 
         P = tf.convert_to_tensor(manoRight['posedirs'] , dtype=tf.float32)
-
-        # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
         K = tf.convert_to_tensor(manoRight['kintree_table'][0], dtype=tf.int64)
-        
-        # Joint regressor that are learned (J), Shape=(16,778), type=float64   
-        J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)
-        
-        # Weights that are learned (W), Shape=(778,16), type=float64       
+        J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)     
         W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)
 
-
-        # vis = o3d.visualization.Visualizer()
-        # vis.create_window()
-
+        # get 3D keypoints.
         batch_size = 1
         beta = tf.zeros([batch_size, 10])
-        pose = tf.zeros([batch_size, 16, 3])
+        #pose = tf.concat( 
+        #    [ 
+        #        tf.repeat(tf.constant([[[1.57,0,0]]]), repeats=[batch_size], axis=0), 
+        #        tf.zeros([batch_size, 15, 3])
+        #    ], axis=1
+        #)
+        pose = tf.repeat(tf.constant([[
+            [0,0,0], # Root
+            [0,0,0], # 
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0]
+        ]], dtype=tf.float32), repeats=[batch_size], axis=0)
+        print(cstr("pose"), pose)
         T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
-        
         keypoints3D = lbs(beta, pose, J, K, W, S, P, T_bar_batched) # [bs, 16, 3]
 
+        # do open3d things.
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1)
+        vis.add_geometry(mesh_frame)  
+
+        
+
         # render the 3d keypoints and display the image.
-        render = rendering.OffscreenRenderer(1920, 1080)
-        yellow = rendering.MaterialRecord()
-        yellow.base_color = [1.0, 0.75, 0.0, 1.0]
-        yellow.shader = "defaultLit"
+        #render = rendering.OffscreenRenderer(1920, 1080)
+        #yellow = rendering.MaterialRecord()
+        #yellow.base_color = [1.0, 0.75, 0.0, 1.0]
+        #yellow.shader = "defaultLit"
 
-        green = rendering.MaterialRecord()
-        green.base_color = [0.0, 0.5, 0.0, 0.5] # [r,g,b,a]
-        green.shader = "defaultLit"
-        green.has_alpha = True
+        #green = rendering.MaterialRecord()
+        #green.base_color = [0.0, 0.5, 0.0, 0.5] # [r,g,b,a]
+        #green.shader = "defaultLit"
+        #green.has_alpha = True
 
-        grey = rendering.MaterialRecord()
-        grey.base_color = [0.7, 0.7, 0.7, 1.0]
-        grey.shader = "defaultLit"
+        #grey = rendering.MaterialRecord()
+        #grey.base_color = [0.7, 0.7, 0.7, 1.0]
+        #grey.shader = "defaultLit"
 
-        white = rendering.MaterialRecord()
-        white.base_color = [1.0, 1.0, 1.0, 1.0]
-        white.shader = "defaultLit"
+        #white = rendering.MaterialRecord()
+        #white.base_color = [1.0, 1.0, 1.0, 1.0]
+        #white.shader = "defaultLit"
 
-        cyl = o3d.geometry.TriangleMesh.create_cylinder(.05, 3)
-        cyl.compute_vertex_normals()
-        cyl.translate([-2, 0, 1.5])
-        sphere = o3d.geometry.TriangleMesh.create_sphere(.2)
-        sphere.compute_vertex_normals()
-        sphere.translate([-2, 0, 3])
+        #cyl = o3d.geometry.TriangleMesh.create_cylinder(.05, 3)
+        #cyl.compute_vertex_normals()
+        #cyl.translate([-2, 0, 1.5])
+        #sphere = o3d.geometry.TriangleMesh.create_sphere(.2)
+        #sphere.compute_vertex_normals()
+        #sphere.translate([-2, 0, 3])
 
-        box = o3d.geometry.TriangleMesh.create_box(2, 2, 1)
-        box.compute_vertex_normals()
-        box.translate([-1, -1, 0])
-        solid = o3d.geometry.TriangleMesh.create_icosahedron(0.5)
-        solid.compute_triangle_normals()
-        solid.compute_vertex_normals()
-        solid.translate([0, 0, 1.75])
+        #box = o3d.geometry.TriangleMesh.create_box(2, 2, 1)
+        #box.compute_vertex_normals()
+        #box.translate([-1, -1, 0])
+        #solid = o3d.geometry.TriangleMesh.create_icosahedron(0.5)
+        #solid.compute_triangle_normals()
+        #solid.compute_vertex_normals()
+        #solid.translate([0, 0, 1.75])
 
-        render.scene.add_geometry("cyl", cyl, green)
+        #render.scene.add_geometry("cyl", cyl, green)
         #render.scene.add_geometry("sphere", sphere, yellow)
 
         # [bs, 16, 3]
@@ -244,9 +267,12 @@ def demo():
             keypoint = tf.squeeze(keypoint)
             print(cstr("squeezed"), keypoint.numpy())
             msphere = o3d.geometry.TriangleMesh.create_sphere(0.05)
+            msphere.paint_uniform_color([0, 0.75, 0])
             msphere.compute_vertex_normals()
             msphere.translate(keypoint.numpy() * 10)
-            render.scene.add_geometry("sphere{}".format(i), msphere, yellow)
+            vis.add_geometry(msphere)
+            vis.update_geometry(msphere)     
+            #render.scene.add_geometry("sphere{}".format(i), msphere, yellow)
             i += 1
 
         # add the MANO mesh as well.
@@ -255,21 +281,32 @@ def demo():
         mesh.triangles = o3d.utility.Vector3iVector(F)
         mesh.vertices = o3d.utility.Vector3dVector(T_bar_scaled) 
         mesh.compute_vertex_normals()
-
         pcd = mesh.sample_points_uniformly(number_of_points=1000)
-        render.scene.add_geometry("pcd", pcd, green)
+        vis.add_geometry(pcd)   
+        vis.update_geometry(pcd)  
+
+        globalRunning = True
+        while globalRunning:
+            vis.poll_events()
+            vis.update_renderer()
+            time.sleep(1/60) # 1 s = 1000ms
+
+        vis.destroy_window()
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
+
+        #render.scene.add_geometry("pcd", pcd, green)
 
         #render.scene.add_geometry("mesh", mesh, green)
         
-        render.setup_camera(60.0, [0, 0, 0], [2.5, 2.5, 2.5], [0, 0, 1])
-        render.scene.scene.set_sun_light([0.707, 0.0, -.707], [1.0, 1.0, 1.0],
-                                        75000)
-        render.scene.scene.enable_sun_light(True)
-        render.scene.show_axes(True)
+        #render.setup_camera(60.0, [0, 0, 0], [2.5, 2.5, 2.5], [0, 0, 1])
+        #render.scene.scene.set_sun_light([0.707, 0.0, -.707], [1.0, 1.0, 1.0],
+        #                                75000)
+        #render.scene.scene.enable_sun_light(True)
+        #render.scene.show_axes(True)
 
-        img = render.render_to_image()
-        print("Saving image at test.png")
-        o3d.io.write_image("test.png", img, 9)
+        #img = render.render_to_image()
+        #print("Saving image at test.png")
+        #o3d.io.write_image("test.png", img, 9)
 
 
 def unit_test():
