@@ -191,7 +191,7 @@ def demo():
         #    ], axis=1
         #)
         pose = tf.repeat(tf.constant([[
-            [0,0,0], # Root
+            [1.57/2,0,0], # Root
             [0,0,0], # 
             [0,0,0],
             [0,0,0],
