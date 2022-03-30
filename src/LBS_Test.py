@@ -1,53 +1,48 @@
-# Authored by Lucas Coster
+'''
+
+NOTE: For the better estimation of a MANO mesh we must render mesh to a depth image
+-> weak supervision via RHD ground truth depth images.
+
+^ this is an after CUCAI task.
+
+Step 1) Write a visualization for rendering the 3D keypoints of a MANO hand.
+Step 2) Then use this to verfiy the pseudo LBS func.
+Step 3) Change lbs accordingly to get things to a working state.
+'''
+
+# Authored by Lucas Coster, Noah Cabral, Max Vincent
 # Test for the MANO Linear Blend Skinning functions
 
 from fnmatch import translate
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import Model
-import os
 import pickle
 import time
 
+from mano_bs import blend_shape
+from mano_bp import blend_pose
+from mano_bp import rmatrix_from_pose
 from rodrigues import rodrigues
 
-def lbs(pose, J_, K_, W_, V_):
-
-    #batch size
-    bs = pose.shape[0]
-
-    #shape contribution
-    v_shaped = V_ # + blend_shape(beta, S_)
-
-    #rest posed locations 
-    j_rest = vertices2joints(v_shaped, J_)
-
-    #add pose blend
-    #3 by 1 axis angle to 3 by 3 rotation matrix
-    # eye3 = tf.eye(3, dtype=tf.float32)
-    rmatrix = tf.reshape(rodrigues(tf.reshape(pose,(-1,3))),(bs,-1,3,3))
-
-    #pose feature
-    # pose_feature = (rmatrix[:, 1:, :, :] - eye3).view([bs, -1])
-    #pose offsets
-    #pose_offsets = tf.matmul(pose_feature, P_).view(bs,-1,3)
-    v_posed = v_shaped # + pose_offsets
-
-    #get global joint location
-    j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
-
-    # do skinning
-    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
-    T = tf.matmul(W_bar_batched, tf.reshape(A,(bs, -1, 16)))
-    T = tf.reshape(T, (bs, -1, 4, 4))
-
-    ones = tf.ones([bs, v_posed.shape[1],1], dtype=tf.float32)
-    v_posed_homo = tf.concat([v_posed, ones], axis=2)
-    v_homo = tf.matmul(T , tf.expand_dims(v_posed_homo, axis = -1))
-
-    vertices = v_homo[:, :, :3, 0]
-
-    return vertices, j_transformed
+import sys, os
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+def enablePrint():
+    sys.stdout = sys.__stdout__
+DEBUG = True
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+def cstr(str): # cyan string
+    return bcolors.OKCYAN + str + bcolors.ENDC
 
 def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
@@ -59,81 +54,110 @@ def transform_matrix(R, t):
     row_batched = tf.repeat(tf.expand_dims(row, axis=0), repeats=[bs], axis=0)
     T = tf.concat([T,row_batched], axis = 1)
     return T
-    '''
-    tf.pad(T,[0,0,0,1])
-    return T
-    return tf.concat ([
-        tf.pad(R, [0,0,0,1]), 
-        tf.pad(t, [0,0,0,1], value=1)
-        ], axis=2)
-    '''
 
-def batch_rigid_transform(rmats, joints, parents):
-    # applies a batch of rigid transforms to the joints
-    # input rotation matrices
-    # input joint locations
-    # input kinematic trees of each object
-    # output joint locations after applying the pose rotations
-    # output transforms with respect to root joints
+# currently a pseudo lbs.
+def lbs(beta, pose, J, K, W, S, P, T_bar):
 
-    bs = joints.shape[0]
+    bs = pose.shape[0]
+    T_shaped = T_bar + blend_shape(beta, S)
+    J_rest = vertices2joints(T_shaped, J)
+    T_posed = T_shaped + blend_pose(pose, P)
+    rmats = rmatrix_from_pose(pose)
+    #rmats = tf.eye(3, num_columns=3, batch_shape=[bs, 16], dtype=tf.float32)
 
-    # print("parents", parents)
-    # print("joints", joints)
-    joints = tf.expand_dims(joints, axis =-1)
-
-    # tf.gather(joints, axis=[])
-    # tf.gather(parents, axis=[0])
-
-    #rel_joints = tf.squeeze(tf.identity(joints)[:, 1:], axis=3)
-    rel_joints = tf.identity(joints)
-
-    # conceptually, we want to for each batch, 
-    # take each joint and subtract from it the position of the parent joint.
+    ### BATCH_RIGID_TRANFORM ###
+    # j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
+    print(cstr("J_rest=\n"), J_rest)
+    joints = tf.expand_dims(J_rest, axis =-1) # converts J_rest into a batch of column vectors.
+    print(cstr("joints=\n"), joints)
+    parents = K
+    # TODO: Investigate if this is the right way to handle the root joint...
+    #parents -= tf.concat([ tf.constant([4294967295], dtype=tf.int64), tf.zeros( (15), dtype=tf.int64 ) ], axis=0)
     
-    # print("parents[1:]", parents[1:])
-    # print("joints[:, 1:]", joints[:, 1:])
-    # print("tf.squeeze(joints[:, 1:], axis=3)", tf.squeeze(joints[:, 1:], axis=3))
-    # print("tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:])", tf.gather( tf.squeeze(joints[:, 1:], axis=3), indices=parents[1:]))
-    # print("tf.gather( joints[:, 1:], indices=parents[1:], axis=1)", tf.gather( joints[:, 1:], indices=parents[1:], axis=1))
+    # rel_joints is defined such that it stores the location of all joints in the coordinate space
+    # of their ancestor. This is as oposed to joints which stores the location of all joints in the
+    # global coordinate space.
+    rel_joints = tf.identity(joints)
+    rel_joints -= tf.concat( 
+        [ tf.zeros([bs, 1, 3, 1]), tf.gather(joints[:, :], indices=parents[1:], axis=1) ],
+        axis=1
+    )
+    print(cstr("rel_joints=\n"), rel_joints)
 
-    #rel_joints -= tf.concat([
-    #        tf.squeeze(tf.gather(joints[:, :], indices=parents[1:], axis=1), axis=3),
-    #        tf.zeros((bs, 3), dtype=tf.float32)
-    #    ], axis=0)
-
-    parents -= tf.concat([ tf.constant([4294967295], dtype=tf.int64), tf.zeros( (15), dtype=tf.int64 ) ], axis=0)
-    print("parents", parents)
-    rel_joints -= tf.gather(joints[:, :], indices=parents, axis=1)
-
-    print("rel_joints", rel_joints)
-
+    print(cstr("rmats=\n"), rmats)
     tm = transform_matrix(tf.reshape(rmats, (-1, 3, 3)), tf.reshape(rel_joints, (-1, 3, 1)))
-    print("transforms_matrix", tm)
-    # transforms_matrix = tf.reshape(transforms_matrix, ((-1, joints.shape[1], 4, 4)))                     
+    print(cstr("tm=\n"), tm)
 
-    # transform_chain = [transforms_matrix[:,0]]
+    # We note that tm gets collapsed along the batch dimension (combining batches with 2nd dim)
+    # So we transform it back.
+    tm = tf.reshape(tm, ((-1, joints.shape[1], 4, 4)))
+    print(cstr("tm(after reintroducing batches)=\n"), tm)
+
+    
+    # So this is Gk as seen in SMPL paper but as a Python list.
+    #
+    # What happens in the formulation of Gk here is that the joints array is defined
+    # such that for any ith joint in the list, the parent will have some index i_prime that
+    # is less than i. So the parents always come first.
+    # otherwise we would get indexing errors into the code below.
+    #
+    # and if we think for a moment about what the code below is doing?
+    # it is building the Gk for each k part, and it is does this by continually
+    # climbing up the ancestor chain.
+    Gk_pylist = [ tm[:,0] ]
+    for i in range(1, parents.shape[0]):
+        Gk_pylist.append( tf.matmul(Gk_pylist[parents[i]], tm[:,i]) )
+
+    print(cstr("Gk_pylist=\n"), Gk_pylist)
+    Gk = tf.stack(Gk_pylist, axis=1)
+    print(cstr("Gk=\n"), Gk)
+
+    # Why is it that these are actually the posed_joints?
+    # because the joints are already in their own ref frame.
+    posed_joints = tf.slice( Gk[:, :, :, 3], [0, 0, 0], [bs, 16, 3])
+    # posed_joints = Gk[:, :, :, 3]
+    print(cstr("posed_joints"), posed_joints)
+
+    return posed_joints
 
     '''
-    for i in range(1, parents.shape[0]):
-        # subtract joint location at rest pose
-        curr_res = tf.matmul(transform_chain[parents[i]],transforms_matrix[:,i])
-        transform_chain.append(curr_res)
-
-    transforms = tf.stack(transform_chain, axis=1)
-
     # the last coloumn of the transfer contains the posed joints
     posed_joints = transforms[:,:,3,3]
 
     # TODO: We want to change this from F. Definitely cannot be this.
     joints_homogen = tf.pad(joints,[0,0,0,1])
     rel_transforms = transforms - tf.pad(tf.matmul(transforms, joints_homogen), [3,0,0,0,0,0,0,0])
+    return posed_joints, rel_transforms
     '''
 
-import open3d as o3d
+    ### BATCH_RIGID_TRANFORM ###
 
+    '''
+    # take G_k' and weight it by W.
+    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
+    T = tf.matmul(W_bar_batched, tf.reshape(A, (bs, -1, 16)))
+    T = tf.reshape(T, (bs, -1, 4, 4))
+
+    # run the points through T, which is the G_k' but weighted by W.
+    ones = tf.ones([bs, T_posed.shape[1],1], dtype=tf.float32)
+    T_posed_homo = tf.concat([T_posed, ones], axis=2)
+    T_homo = tf.matmul(T , tf.expand_dims(T_posed_homo, axis = -1))
+    vertices = T_homo[:, :, :3, 0]
+    '''
+
+    # return vertices, j_transformed
+
+import open3d as o3d
+import open3d.visualization.rendering as rendering
+
+# The goal of the demo here is to use open3d to render something transparently onto a backdrop.
 def demo():
-    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+    
+    if DEBUG:
+        enablePrint()
+    else:
+        blockPrint()
+
     manoRight = None
 
     try:
@@ -151,72 +175,146 @@ def demo():
 
         S = tf.convert_to_tensor(manoRight['shapedirs'], dtype=tf.float32) # shape of S is (778, 3, 10)
         T_bar = tf.convert_to_tensor(manoRight['v_template'], dtype=tf.float32) # shape of (778, 3)
-        F = np.array(manoRight['f'], dtype=np.int32)  
-
-        # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
+        F = np.array(manoRight['f'], dtype=np.int32) 
+        P = tf.convert_to_tensor(manoRight['posedirs'] , dtype=tf.float32)
         K = tf.convert_to_tensor(manoRight['kintree_table'][0], dtype=tf.int64)
-        # Joint regressor that are learned (J), Shape=(16,778), type=float64   
-        J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)
-        # Weights that are learned (W), Shape=(778,16), type=float64       
-        W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)             
-        
-        
+        J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)     
+        W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)
+
+        # get 3D keypoints.
+        batch_size = 1
+        beta = tf.zeros([batch_size, 10])
+        #pose = tf.concat( 
+        #    [ 
+        #        tf.repeat(tf.constant([[[1.57,0,0]]]), repeats=[batch_size], axis=0), 
+        #        tf.zeros([batch_size, 15, 3])
+        #    ], axis=1
+        #)
+        pose = tf.repeat(tf.constant([[
+            [1.57/2,0,0], # Root
+            [0,0,0], # 
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0]
+        ]], dtype=tf.float32), repeats=[batch_size], axis=0)
+        print(cstr("pose"), pose)
+        T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
+        keypoints3D = lbs(beta, pose, J, K, W, S, P, T_bar_batched) # [bs, 16, 3]
+
+        # do open3d things.
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
         vis = o3d.visualization.Visualizer()
         vis.create_window()
-        
-        # create the meshes
-        mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+        mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1)
         vis.add_geometry(mesh_frame)  
-        meshes = []
-        
-        for i in range(5):
-          mesh = o3d.geometry.TriangleMesh()
-          mesh_t = (0.1 + i * 0.1) * np.ones([778, 3])
-          mesh.triangles = o3d.utility.Vector3iVector(F)  
-          vis.add_geometry(mesh)
-          meshes.append((mesh, mesh_t))
 
-        #beta = tf.zeros([5, 10])
-        pose = tf.zeros([1,16,3])
-        frame_count = 0
+        
+
+        # render the 3d keypoints and display the image.
+        #render = rendering.OffscreenRenderer(1920, 1080)
+        #yellow = rendering.MaterialRecord()
+        #yellow.base_color = [1.0, 0.75, 0.0, 1.0]
+        #yellow.shader = "defaultLit"
+
+        #green = rendering.MaterialRecord()
+        #green.base_color = [0.0, 0.5, 0.0, 0.5] # [r,g,b,a]
+        #green.shader = "defaultLit"
+        #green.has_alpha = True
+
+        #grey = rendering.MaterialRecord()
+        #grey.base_color = [0.7, 0.7, 0.7, 1.0]
+        #grey.shader = "defaultLit"
+
+        #white = rendering.MaterialRecord()
+        #white.base_color = [1.0, 1.0, 1.0, 1.0]
+        #white.shader = "defaultLit"
+
+        #cyl = o3d.geometry.TriangleMesh.create_cylinder(.05, 3)
+        #cyl.compute_vertex_normals()
+        #cyl.translate([-2, 0, 1.5])
+        #sphere = o3d.geometry.TriangleMesh.create_sphere(.2)
+        #sphere.compute_vertex_normals()
+        #sphere.translate([-2, 0, 3])
+
+        #box = o3d.geometry.TriangleMesh.create_box(2, 2, 1)
+        #box.compute_vertex_normals()
+        #box.translate([-1, -1, 0])
+        #solid = o3d.geometry.TriangleMesh.create_icosahedron(0.5)
+        #solid.compute_triangle_normals()
+        #solid.compute_vertex_normals()
+        #solid.translate([0, 0, 1.75])
+
+        #render.scene.add_geometry("cyl", cyl, green)
+        #render.scene.add_geometry("sphere", sphere, yellow)
+
+        # [bs, 16, 3]
+        keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
+        print(cstr("keypoints3D_pylist"), keypoints3D_pylist)
+
+        i = 0
+        for keypoint in keypoints3D_pylist:
+            keypoint = tf.squeeze(keypoint)
+            print(cstr("squeezed"), keypoint.numpy())
+            msphere = o3d.geometry.TriangleMesh.create_sphere(0.05)
+            msphere.paint_uniform_color([0, 0.75, 0])
+            msphere.compute_vertex_normals()
+            msphere.translate(keypoint.numpy() * 10)
+            vis.add_geometry(msphere)
+            vis.update_geometry(msphere)     
+            #render.scene.add_geometry("sphere{}".format(i), msphere, yellow)
+            i += 1
+
+        # add the MANO mesh as well.
+        T_bar_scaled = T_bar * 10
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.triangles = o3d.utility.Vector3iVector(F)
+        mesh.vertices = o3d.utility.Vector3dVector(T_bar_scaled) 
+        mesh.compute_vertex_normals()
+        pcd = mesh.sample_points_uniformly(number_of_points=1000)
+        vis.add_geometry(pcd)   
+        vis.update_geometry(pcd)  
 
         globalRunning = True
         while globalRunning:
-            
-            # Now we want to generate some random blend shapes. Let's start with no pertubations at all.
-            if (frame_count >= 30):
-                frame_count = 0
-                pose = tf.random.normal([1, 16, 3])
-
-                #beta = tf.random.normal([5, 10])
-            
-            # Generate the mesh by applying pertubations due to beta params.
-            #T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[5], axis=0)
-            T_skinned, keypoints3D = lbs(pose, J, K, W, T_bar)
-
-            #T_posed_batched = T_bar_batched + blend_shape(beta, S)
-
-            # Re-generate all hands from the batch, 
-            # update the meshes, and update the renderer.
-            for i in range(5):
-              mesh, mesh_t = meshes[i]
-              mesh.vertices = o3d.utility.Vector3dVector(T_skinned.numpy()[i,:,:] + mesh_t) 
-              mesh.compute_vertex_normals()
-              mesh.paint_uniform_color([0.75, 0.75, 0.75])
-              vis.update_geometry(mesh)
-            
             vis.poll_events()
             vis.update_renderer()
-
             time.sleep(1/60) # 1 s = 1000ms
-
-            frame_count += 1
 
         vis.destroy_window()
         o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
 
+        #render.scene.add_geometry("pcd", pcd, green)
+
+        #render.scene.add_geometry("mesh", mesh, green)
+        
+        #render.setup_camera(60.0, [0, 0, 0], [2.5, 2.5, 2.5], [0, 0, 1])
+        #render.scene.scene.set_sun_light([0.707, 0.0, -.707], [1.0, 1.0, 1.0],
+        #                                75000)
+        #render.scene.scene.enable_sun_light(True)
+        #render.scene.show_axes(True)
+
+        #img = render.render_to_image()
+        #print("Saving image at test.png")
+        #o3d.io.write_image("test.png", img, 9)
+
 
 def unit_test():
+
+    if DEBUG:
+        enablePrint()
+    else:
+        blockPrint()
 
     manoRight = None
 
@@ -235,51 +333,34 @@ def unit_test():
 
         S = tf.convert_to_tensor(manoRight['shapedirs'], dtype=tf.float32) # shape of S is (778, 3, 10)
         T_bar = tf.convert_to_tensor(manoRight['v_template'], dtype=tf.float32) # shape of (778, 3)
-        F = np.array(manoRight['f'], dtype=np.int32)  
+        F = np.array(manoRight['f'], dtype=np.int32) 
+        P = tf.convert_to_tensor(manoRight['posedirs'] , dtype=tf.float32)
+
         # Kinematic tree defining the parent joint (K), Shape=(16,), type=int64
         K = tf.convert_to_tensor(manoRight['kintree_table'][0], dtype=tf.int64)
+        
         # Joint regressor that are learned (J), Shape=(16,778), type=float64   
         J = tf.convert_to_tensor(manoRight['J_regressor'].todense(), dtype=tf.float32)
+        
         # Weights that are learned (W), Shape=(778,16), type=float64       
         W = tf.convert_to_tensor(manoRight['weights'], dtype=tf.float32)
 
-        #vis = o3d.visualization.Visualizer()
-        #vis.create_window()
+
+        # vis = o3d.visualization.Visualizer()
+        # vis.create_window()
 
         batch_size = 1
-        pose = tf.zeros([batch_size,16,3])
-        bs = pose.shape[0] # batch size.
+        beta = tf.zeros([batch_size, 10])
+        pose = tf.zeros([batch_size, 16, 3])
         T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
-        j_rest = vertices2joints(T_bar_batched, J)
-        # whenever we do a -1 in a reshape, this set the dimension size to whatever it needs to be
-        # so that we preserve the size before reshaping.
-        rmatrix = tf.reshape(rodrigues(tf.reshape(pose, (-1,3))), (bs,-1,3,3)) 
-        print("rmatrix", rmatrix)
-        batch_rigid_transform(rmatrix, j_rest, K)
-
-        '''# create the meshes
-        mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        vis.add_geometry(mesh_frame)  
         
-        for i in range(16):
-          mesh_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.0)
-          mesh_sphere.compute_vertex_normals()
-          mesh_sphere.paint_uniform_color([0.1, 0.1, 0.7])
-          print("j_rest[0, i].numpy()", j_rest[0, i].numpy())
-          mesh_sphere.translate( j_rest[0, i].numpy() )
-          vis.update_geometry(mesh_sphere)
-        
-        globalRunning = True
-        while globalRunning:
-            vis.poll_events()
-            vis.update_renderer()
-        '''
+        lbs(beta, pose, J, K, W, S, P, T_bar_batched)
 
 if __name__ == "__main__":
 
-    #demo()
+    demo()
 
-    unit_test()
+    #unit_test()
     
     
 

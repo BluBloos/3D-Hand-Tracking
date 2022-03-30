@@ -45,6 +45,8 @@ class MANO_Model(Model):
 
   def call(self, beta, pose, root_trans, training=False):
 
+    bs = beta.shape[0]  
+
     # TODO: Shape and pose the mesh
 
     # TODO: Run the shaped and posed mesh through linear blend skinning
@@ -57,4 +59,4 @@ class MANO_Model(Model):
 
     # TODO: change the return statement to return the appropriate
     # values (the final mesh and final joints). 
-    return self.T_bar, self.K
+    return self.T_bar, tf.random.normal([bs, 21, 3])
