@@ -48,12 +48,17 @@ class MANO_Model(Model):
     bs = beta.shape[0]  
 
     # TODO: Shape and pose the mesh
-
+    T_Shape = blend_shape(beta, self.S)
+    T_Pose = blend_pose(pose, self.P)
+    
     # TODO: Run the shaped and posed mesh through linear blend skinning
-    # will get back -> the mesh, the posed joints
+    # will get back -> posed joints
+    posed_joints, posed_mesh = lbs(pose, self.J, self.K, self.W, T_Shape, T_Pose)
 
     # TODO: Add the fingertips to the posed joints. See the Notion doc for more details.
-
+    fingertips = tf.slice(posed_mesh[
+    posed_joints = tf.concat([posed_joints, fingertips], axis = 1)
+    
     # TODO: translate both the mesh and the posed joints by
     # the root_trans
 
