@@ -56,7 +56,7 @@ def transform_matrix(R, t):
     return T
 
 # currently a pseudo lbs.
-def lbs(beta, pose, J, K, W, S, P, T_shaped, T_posed):
+def lbs(pose, J, K, W, T_shaped, T_posed):
 
     bs = pose.shape[0]
     J_rest = vertices2joints(T_shaped, J)
@@ -190,7 +190,7 @@ def demo():
         #)
         pose = tf.repeat(tf.constant([[
             [1.57/2,0,0], # Root
-            [0,0,0], # 
+            [0,1.57/2,0], # 
             [0,0,0],
             [0,0,0],
             [0,0,0],
@@ -208,7 +208,7 @@ def demo():
         ]], dtype=tf.float32), repeats=[batch_size], axis=0)
         print(cstr("pose"), pose)
         T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
-        keypoints3D = lbs(beta, pose, J, K, W, S, P, T_bar_batched) # [bs, 16, 3]
+        keypoints3D = lbs(pose, J, K, W, T_bar_batched, T_bar_batched) # [bs, 16, 3]
 
         # do open3d things.
         o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)

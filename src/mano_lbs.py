@@ -15,7 +15,7 @@ def transform_matrix(R, t):
     T = tf.concat([T,row_batched], axis = 1)
     return T
 
-def lbs(beta, pose, J, K, W, S, P, T_shaped, T_posed):
+def lbs(pose, J, K, W, T_shaped, T_posed):
 
     bs = pose.shape[0]
     J_rest = vertices2joints(T_shaped, J)
