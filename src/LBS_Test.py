@@ -56,14 +56,12 @@ def transform_matrix(R, t):
     return T
 
 # currently a pseudo lbs.
-def lbs(beta, pose, J, K, W, S, P, T_bar):
+def lbs(beta, pose, J, K, W, S, P, T_shaped, T_posed):
 
     bs = pose.shape[0]
-    T_shaped = T_bar + blend_shape(beta, S)
     J_rest = vertices2joints(T_shaped, J)
-    T_posed = T_shaped + blend_pose(pose, P)
     rmats = rmatrix_from_pose(pose)
-    #rmats = tf.eye(3, num_columns=3, batch_shape=[bs, 16], dtype=tf.float32)
+    # rmats = tf.eye(3, num_columns=3, batch_shape=[bs, 16], dtype=tf.float32)
 
     ### BATCH_RIGID_TRANFORM ###
     # j_transformed, A = batch_rigid_transform(rmatrix, j_rest, K_)
