@@ -56,7 +56,7 @@ def transform_matrix(R, t):
     return T
 
 # currently a pseudo lbs.
-def lbs(pose, J, K, W, T_shaped, T_posed):
+def lbs(pose, J, K, W, T_shaped, B_p):
 
     bs = pose.shape[0]
     J_rest = vertices2joints(T_shaped, J)
@@ -90,7 +90,6 @@ def lbs(pose, J, K, W, T_shaped, T_posed):
     # So we transform it back.
     tm = tf.reshape(tm, ((-1, joints.shape[1], 4, 4)))
     print(cstr("tm(after reintroducing batches)=\n"), tm)
-
     
     # So this is Gk as seen in SMPL paper but as a Python list.
     #
@@ -116,34 +115,31 @@ def lbs(pose, J, K, W, T_shaped, T_posed):
     # posed_joints = Gk[:, :, :, 3]
     print(cstr("posed_joints"), posed_joints)
 
-    return posed_joints
+    joints_homo = tf.pad(joints, [[0,0],[0,0],[0,1],[0,0]], constant_values=1 )
+    print(cstr("joints_homo"), joints_homo)
 
-    '''
-    # the last coloumn of the transfer contains the posed joints
-    posed_joints = transforms[:,:,3,3]
+    # Remove the rest pose from each Gk.
+    rmat_rest = rmatrix_from_pose(tf.zeros([bs, 16, 3]))
+    
+    # NOTE(Noah): Maybe we want to change transform matrix to stop being so silly...?
+    Gk_rest_inv = transform_matrix(tf.reshape(rmat_rest, [-1, 3, 3]), 
+        -tf.reshape(joints, [-1,3,1]))
+    Gk_rest_inv = tf.reshape(Gk_rest_inv, ((-1, joints.shape[1], 4, 4)))
+    print(cstr("Gk_rest_inv"), Gk_rest_inv)
+    Gk_prime = tf.matmul(Gk, Gk_rest_inv) 
+    print(cstr("Gk_prime"), Gk_prime)
 
-    # TODO: We want to change this from F. Definitely cannot be this.
-    joints_homogen = tf.pad(joints,[0,0,0,1])
-    rel_transforms = transforms - tf.pad(tf.matmul(transforms, joints_homogen), [3,0,0,0,0,0,0,0])
-    return posed_joints, rel_transforms
-    '''
+    W_batched = tf.repeat(tf.expand_dims(W, axis=0), repeats=[bs], axis=0)
+    L = tf.matmul(W_batched, tf.reshape(Gk_prime, (bs, -1, 16)))
+    L = tf.reshape(L, (bs, -1, 4, 4))
 
-    ### BATCH_RIGID_TRANFORM ###
+    _T = T_shaped + B_p
+    ones = tf.ones([bs, _T.shape[1], 1], dtype=tf.float32)
+    _T_homo = tf.concat([_T, ones], axis=2)
+    T_prime = tf.matmul(L, tf.expand_dims(_T_homo, axis=-1))
+    mesh = T_prime[:, :, :3, 0]
 
-    '''
-    # take G_k' and weight it by W.
-    W_bar_batched = tf.repeat(tf.expand_dims(W_, axis=0), repeats=[bs], axis=0) # TODO: This might be totally false.                     
-    T = tf.matmul(W_bar_batched, tf.reshape(A, (bs, -1, 16)))
-    T = tf.reshape(T, (bs, -1, 4, 4))
-
-    # run the points through T, which is the G_k' but weighted by W.
-    ones = tf.ones([bs, T_posed.shape[1],1], dtype=tf.float32)
-    T_posed_homo = tf.concat([T_posed, ones], axis=2)
-    T_homo = tf.matmul(T , tf.expand_dims(T_posed_homo, axis = -1))
-    vertices = T_homo[:, :, :3, 0]
-    '''
-
-    # return vertices, j_transformed
+    return posed_joints, mesh
 
 import open3d as o3d
 import open3d.visualization.rendering as rendering
@@ -208,7 +204,7 @@ def demo():
         ]], dtype=tf.float32), repeats=[batch_size], axis=0)
         print(cstr("pose"), pose)
         T_bar_batched = tf.repeat(tf.expand_dims(T_bar, axis=0), repeats=[batch_size], axis=0)
-        keypoints3D = lbs(pose, J, K, W, T_bar_batched, T_bar_batched) # [bs, 16, 3]
+        keypoints3D, T_posed = lbs(pose, J, K, W, T_bar_batched, blend_pose(pose, P) ) # [bs, 16, 3]
 
         # do open3d things.
         o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
@@ -216,8 +212,6 @@ def demo():
         vis.create_window()
         mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1)
         vis.add_geometry(mesh_frame)  
-
-        
 
         # render the 3d keypoints and display the image.
         #render = rendering.OffscreenRenderer(1920, 1080)
@@ -274,10 +268,10 @@ def demo():
             i += 1
 
         # add the MANO mesh as well.
-        T_bar_scaled = T_bar * 10
+        T_posed_scaled = T_posed * 10
         mesh = o3d.geometry.TriangleMesh()
         mesh.triangles = o3d.utility.Vector3iVector(F)
-        mesh.vertices = o3d.utility.Vector3dVector(T_bar_scaled) 
+        mesh.vertices = o3d.utility.Vector3dVector(T_posed_scaled[0, :, :].numpy()) 
         mesh.compute_vertex_normals()
         pcd = mesh.sample_points_uniformly(number_of_points=1000)
         vis.add_geometry(pcd)   

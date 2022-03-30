@@ -15,7 +15,7 @@ def transform_matrix(R, t):
     T = tf.concat([T,row_batched], axis = 1)
     return T
 
-def lbs(pose, J, K, W, T_shaped, T_posed):
+def lbs(pose, J, K, W, T_shaped, B_p):
 
     bs = pose.shape[0]
     J_rest = vertices2joints(T_shaped, J)
@@ -42,7 +42,7 @@ def lbs(pose, J, K, W, T_shaped, T_posed):
     # We note that tm gets collapsed along the batch dimension (combining batches with 2nd dim)
     # So we transform it back.
     tm = tf.reshape(tm, ((-1, joints.shape[1], 4, 4)))
-    
+  
     # So this is Gk as seen in SMPL paper but as a Python list.
     #
     # What happens in the formulation of Gk here is that the joints array is defined
@@ -56,12 +56,31 @@ def lbs(pose, J, K, W, T_shaped, T_posed):
     Gk_pylist = [ tm[:,0] ]
     for i in range(1, parents.shape[0]):
         Gk_pylist.append( tf.matmul(Gk_pylist[parents[i]], tm[:,i]) )
-
     Gk = tf.stack(Gk_pylist, axis=1)
-
+   
     # Why is it that these are actually the posed_joints?
     # because the joints are already in their own ref frame.
     posed_joints = tf.slice( Gk[:, :, :, 3], [0, 0, 0], [bs, 16, 3])
+  
+    # Remove the rest pose from each Gk.
+    rmat_rest = rmatrix_from_pose(tf.zeros([bs, 16, 3]))
+    
+    # NOTE(Noah): Maybe we want to change transform matrix to stop being so silly...?
+    Gk_rest_inv = transform_matrix(tf.reshape(rmat_rest, [-1, 3, 3]), 
+        -tf.reshape(joints, [-1,3,1]))
+    Gk_rest_inv = tf.reshape(Gk_rest_inv, ((-1, joints.shape[1], 4, 4)))
+   
+    Gk_prime = tf.matmul(Gk, Gk_rest_inv) 
 
-    return posed_joints
+    W_batched = tf.repeat(tf.expand_dims(W, axis=0), repeats=[bs], axis=0)
+    L = tf.matmul(W_batched, tf.reshape(Gk_prime, (bs, -1, 16)))
+    L = tf.reshape(L, (bs, -1, 4, 4))
+
+    _T = T_shaped + B_p
+    ones = tf.ones([bs, _T.shape[1], 1], dtype=tf.float32)
+    _T_homo = tf.concat([_T, ones], axis=2)
+    T_prime = tf.matmul(L, tf.expand_dims(_T_homo, axis=-1))
+    mesh = T_prime[:, :, :3, 0]
+
+    return posed_joints, mesh
     
