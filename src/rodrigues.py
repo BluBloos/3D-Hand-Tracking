@@ -11,7 +11,7 @@ def rodrigues(rvector):
     
     for i in range(batch_size):
         if angles[i] == 0:
-            angles[i] = [1]
+            angles[i] = [1.0]
     angle = tf.stack(angles) 
     runit = rvector/angle
     
