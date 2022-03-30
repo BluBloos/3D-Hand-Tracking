@@ -199,14 +199,15 @@ def demo():
         keypoints3D = lbs(beta, pose, J, K, W, S, P, T_bar_batched) # [bs, 16, 3]
 
         # render the 3d keypoints and display the image.
-        render = rendering.OffscreenRenderer(640, 480)
+        render = rendering.OffscreenRenderer(1920, 1080)
         yellow = rendering.MaterialRecord()
         yellow.base_color = [1.0, 0.75, 0.0, 1.0]
         yellow.shader = "defaultLit"
 
         green = rendering.MaterialRecord()
-        green.base_color = [0.0, 0.5, 0.0, 1.0]
+        green.base_color = [0.0, 0.5, 0.0, 0.5] # [r,g,b,a]
         green.shader = "defaultLit"
+        green.has_alpha = True
 
         grey = rendering.MaterialRecord()
         grey.base_color = [0.7, 0.7, 0.7, 1.0]
@@ -254,7 +255,11 @@ def demo():
         mesh.triangles = o3d.utility.Vector3iVector(F)
         mesh.vertices = o3d.utility.Vector3dVector(T_bar_scaled) 
         mesh.compute_vertex_normals()
-        render.scene.add_geometry("mesh", mesh, green)
+
+        pcd = mesh.sample_points_uniformly(number_of_points=1000)
+        render.scene.add_geometry("pcd", pcd, green)
+
+        #render.scene.add_geometry("mesh", mesh, green)
         
         render.setup_camera(60.0, [0, 0, 0], [2.5, 2.5, 2.5], [0, 0, 1])
         render.scene.scene.set_sun_light([0.707, 0.0, -.707], [1.0, 1.0, 1.0],
