@@ -45,22 +45,15 @@ class MANO_Model(Model):
 
   def call(self, beta, pose, root_trans, training=False):
 
-    bs = beta.shape[0]  
-
-    # TODO: Shape and pose the mesh
     T_shaped = self.T_bar + blend_shape(beta, self.S)
     B_p = blend_pose(pose, self.P)
 
-    # TODO: Run the shaped and posed mesh through linear blend skinning
-    # will get back -> the mesh, the posed joints
     posed_joints, mesh = lbs(pose, self.J, self.K, self.W, T_shaped, B_p)
 
-    # TODO: Add the fingertips to the posed joints. See the Notion doc for more details.
-    #tips = tf.
+    tips = tf.gather(mesh, indices=[745, 333, 444, 555, 672], axis=1)
+    joints_full = tf.concat( [posed_joints, tips], axis=1)
 
-    # TODO: translate both the mesh and the posed joints by
-    # the root_trans
-
-    # TODO: change the return statement to return the appropriate
-    # values (the final mesh and final joints). 
-    return self.T_bar, tf.random.normal([bs, 21, 3])
+    mesh += root_trans
+    joints_full += root_trans
+ 
+    return mesh, joints_full
