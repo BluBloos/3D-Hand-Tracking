@@ -10,8 +10,7 @@ def rodrigues(rvector):
     angles = tf.unstack(angle, axis = 0)
     
     for i in range(batch_size):
-        if angles[i] == 0:
-            angles[i] = [1.0]
+        angles[i] = tf.cond(angles[i] == 0, true_fn=lambda:tf.constant([1.0]), false_fn=lambda:angles[i])
     angle = tf.stack(angles) 
     runit = rvector/angle
     

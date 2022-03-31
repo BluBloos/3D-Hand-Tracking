@@ -53,7 +53,7 @@ class MANO_Model(Model):
     tips = tf.gather(mesh, indices=[745, 333, 444, 555, 672], axis=1)
     joints_full = tf.concat( [posed_joints, tips], axis=1)
 
-    mesh += root_trans
-    joints_full += root_trans
+    mesh += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=778, axis=1)
+    joints_full += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=21, axis=1)
  
     return mesh, joints_full
