@@ -38,6 +38,40 @@ class MANO_Model(Model):
       self.J = tf.convert_to_tensor(self.J.todense(), dtype=tf.float32) # Need to convert sparse to dense matrix
       self.W = tf.convert_to_tensor(self.W, dtype=tf.float32)
 
+      # These are used to remap the joints from the MANO convention to the convention used
+      # by the Rendered Handpose Dataset.
+      self.remap_joints = tf.constant(
+        [
+          0,              # Wrist (0)
+          13, 14, 15, 16, # Thumb (1, 2, 3, 4)
+          1, 2, 3, 17,    # Index (5, 6, 7, 8)
+          4, 5, 6, 18,    # Middle (9, 10, 11, 12)
+          10, 11, 12, 19, # Ring (13, 14, 15, 16)
+          7, 8, 9, 20     # Little (Pinky) (17, 18, 19, 20)
+        ], 
+        dtype=tf.int32
+      )
+
+      # These are used to remap the joints from the Rendered Handpose Dataset convention to the 
+      # MANO convention.
+      self.remap_joints_inv = tf.constant(
+        [
+          0,              
+          5, 6, 7, 9,
+          10, 11, 17, 18,
+          19, 13, 14, 15,
+          1, 2, 3, 4,
+          8, 12, 16, 20
+        ], 
+        dtype=tf.int32
+      )
+
+      # indices are RHD convention, stored indices are MANO convention.
+      self.K_remaped = tf.gather(
+        tf.concat([tf.constant(self.K, dtype=tf.int32), tf.constant([15, 3, 6, 12, 9])], axis=0),
+        indices=self.remap_joints, axis=0
+      )
+
       print('MANO Differentiable Layer Loaded')
 
     except:
@@ -50,8 +84,10 @@ class MANO_Model(Model):
 
     posed_joints, mesh = lbs(pose, self.J, self.K, self.W, T_shaped, B_p)
 
+    # Add fingertips and remap to RHD convention.
     tips = tf.gather(mesh, indices=[745, 333, 444, 555, 672], axis=1)
     joints_full = tf.concat( [posed_joints, tips], axis=1)
+    joints_full = tf.gather(joints_full, indices=self.remap_joints, axis=1)
 
     mesh += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=778, axis=1)
     joints_full += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=21, axis=1)
