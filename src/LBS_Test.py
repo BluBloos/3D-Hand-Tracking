@@ -451,34 +451,27 @@ def demo2():
     train_list = os.listdir(os.path.join(gcs_path, "training/color"))
     train_list.sort()
     
-    '''
-    for j in range(2):
+    for j in range(1):
 
         y_index = int(train_list[j][0:5])
         print(cstr("y_index"), y_index)
         train_image_y = y_train[y_index] # [21, 3]
         k_y = k_train[y_index]
         print(cstr("k_y"), k_y)
-
         k_y_batched = np.repeat(np.expand_dims(k_y, axis=0), 21, axis=0 )
         print(cstr("k_y_batched"), k_y_batched)
         print(cstr("shape="), k_y_batched.shape)
-
         # Put the hand in the center (but only subtract in the x: dimension).
         train_image_y -= np.array([0.0, 0.0, train_image_y[0][2]], dtype=np.float32)
-
-        train_image_y = train_image_y[mpi_model.remap_joints_inv, :]
-
-        #train_image_y = np.squeeze(np.matmul(k_y_batched, np.expand_dims(train_image_y, axis=2)))
-        #print(cstr("train_image_y="), train_image_y)
+        train_image_y *= 10
 
         # build the lines
         lines = [ ]
-        for i in range(1, 16):
+        for i in range(1, 21):
             lines.append( 
                 [
                     i, 
-                    mpi_model.K[i]
+                    mpi_model.RHD_K.numpy()[i]
                 ]
             )
         colors = [[1, 0, 0] for i in range(len(lines))]
@@ -493,15 +486,15 @@ def demo2():
         for i in range(21):
             keypoint = train_image_y[i]
             #print(cstr("squeezed"), keypoint.numpy())
-            msphere = o3d.geometry.TriangleMesh.create_sphere(0.01)
+            msphere = o3d.geometry.TriangleMesh.create_sphere(0.05)
             msphere.paint_uniform_color([0.75, 1 - (j+1) / 5, (j+1) / 5])
             msphere.compute_vertex_normals()
             msphere.translate(keypoint)
             vis.add_geometry(msphere)
             vis.update_geometry(msphere)     
             #render.scene.add_geometry("sphere{}".format(i), msphere, yellow)
-    '''
     
+
     # x_train[0,:,:,:] = train_image
 
     # render the 3d keypoints and display the image.
@@ -541,11 +534,11 @@ def demo2():
     #render.scene.add_geometry("cyl", cyl, green)
     #render.scene.add_geometry("sphere", sphere, yellow)
 
+    '''
     # [bs, 16, 3]
     keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
     print(cstr("keypoints3D"), keypoints3D)    
     print(cstr("keypoints3D_pylist"), keypoints3D_pylist)
-
 
     i = 0
     for keypoint in keypoints3D_pylist:
@@ -586,6 +579,7 @@ def demo2():
     pcd = mesh.sample_points_uniformly(number_of_points=1000)
     vis.add_geometry(pcd)   
     vis.update_geometry(pcd)  
+    '''
 
     globalRunning = True
     while globalRunning:

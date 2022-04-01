@@ -38,8 +38,7 @@ class MANO_Model(Model):
       self.J = tf.convert_to_tensor(self.J.todense(), dtype=tf.float32) # Need to convert sparse to dense matrix
       self.W = tf.convert_to_tensor(self.W, dtype=tf.float32)
 
-      # These are used to remap the joints from the MANO convention to the convention used
-      # by the Rendered Handpose Dataset.
+      # indices are the RHD convention, the stored values are indices in MANO convention.
       self.remap_joints = tf.constant(
         [
           0,              # Wrist (0)
@@ -52,8 +51,7 @@ class MANO_Model(Model):
         dtype=tf.int32
       )
 
-      # These are used to remap the joints from the Rendered Handpose Dataset convention to the 
-      # MANO convention.
+      # indices are MANO convention, the stored values are indices in RHD convention.
       self.remap_joints_inv = tf.constant(
         [
           0,              
@@ -66,7 +64,23 @@ class MANO_Model(Model):
         dtype=tf.int32
       )
 
-      # indices are RHD convention, stored indices are MANO convention.
+      # Rendered hand pose is tip to palm.
+      # What about the MANO? What is the representation that they use ??
+
+      # Indices and stored values are all RHD convention.
+      self.RHD_K = tf.constant(
+        [
+          -1, # root 
+          2, 3, 4, 0,
+          6, 7, 8, 0, 
+          10, 11, 12, 0, 
+          14, 15, 16, 0,
+          18, 19, 20, 0
+        ],
+        dtype=tf.int32
+      )
+
+      # indices are RHD convention, values in K are MANO convention.
       self.K_remaped = tf.gather(
         tf.concat([tf.constant(self.K, dtype=tf.int32), tf.constant([15, 3, 6, 12, 9])], axis=0),
         indices=self.remap_joints, axis=0
