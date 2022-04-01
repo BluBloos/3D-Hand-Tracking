@@ -591,11 +591,126 @@ def demo2():
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
 
 
+def demo3():
+
+    render = rendering.OffscreenRenderer(1080, 1080)
+    if DEBUG:
+        enablePrint()
+    else:
+        blockPrint()
+    mano_dir = os.path.join("..", "mano_v1_2")
+    mpi_model = MANO_Model(mano_dir)    
+    batch_size = 1
+    beta = tf.zeros([batch_size, 10])
+    #pose = tf.concat( 
+    #    [ 
+    #        tf.repeat(tf.constant([[[1.57,0,0]]]), repeats=[batch_size], axis=0), 
+    #        tf.zeros([batch_size, 15, 3])
+    #    ], axis=1
+    #)
+    pose = tf.repeat(tf.constant([[
+        [1.57/2,0,0], # Root
+        [0,1.57/2,0], # 
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0],
+        [0,0,0]
+    ]], dtype=tf.float32), repeats=[batch_size], axis=0)
+    print(cstr("pose"), pose)
+    T_posed, keypoints3D = mpi_model(beta, pose, tf.zeros([batch_size, 3]))
+    # do open3d things.
+    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+
+    green = rendering.MaterialRecord()
+    green.base_color = [0.0, 0.5, 0.0, 1.0]
+    green.shader = "defaultLit"
+
+    red = rendering.MaterialRecord()
+    red.base_color = [0.5, 0.0, 0.0, 1.0]
+    red.shader = "defaultLit"    
+
+    # [bs, 16, 3]
+    keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
+    print(cstr("keypoints3D"), keypoints3D)    
+    print(cstr("keypoints3D_pylist"), keypoints3D_pylist)
+
+    i = 0
+    for keypoint in keypoints3D_pylist:
+        keypoint = tf.squeeze(keypoint)
+        print(cstr("squeezed"), keypoint.numpy())
+        msphere = o3d.geometry.TriangleMesh.create_sphere(0.05)
+        msphere.paint_uniform_color([0, 0.75, 0])
+        msphere.compute_vertex_normals()
+        msphere.translate(keypoint.numpy() * 10)
+        #vis.add_geometry(msphere)
+        #vis.update_geometry(msphere)     
+        render.scene.add_geometry("sphere{}".format(i), msphere, green)
+        i += 1
+    
+    # build the lines
+    lines = [ ]
+    for i in range(1, 21):
+        lines.append( 
+            [
+                i, 
+                mpi_model.RHD_K.numpy()[i]
+            ]
+        )
+    colors = [[1, 0, 0] for i in range(len(lines))]
+    line_set = o3d.geometry.LineSet()
+    line_set.points = o3d.utility.Vector3dVector(tf.squeeze(keypoints3D).numpy() * 10)
+    line_set.lines = o3d.utility.Vector2iVector(lines)
+    line_set.colors = o3d.utility.Vector3dVector(colors)
+    render.scene.add_geometry("line_set", line_set, red)
+
+    # add the MANO mesh as well.
+    T_posed_scaled = T_posed * 10
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.triangles = o3d.utility.Vector3iVector(mpi_model.F.numpy())
+    mesh.vertices = o3d.utility.Vector3dVector(T_posed_scaled[0, :, :].numpy()) 
+    mesh.compute_vertex_normals()
+    pcd = mesh.sample_points_uniformly(number_of_points=1000)
+    render.scene.add_geometry("pcd", pcd, red)  
+    
+    cyl = o3d.geometry.TriangleMesh.create_cylinder(.05, 3)
+    cyl.compute_vertex_normals()
+    cyl.translate([-2, 0, 1.5])
+    render.scene.add_geometry("cyl", cyl, green)
+    #render.scene.add_geometry("sphere", sphere, yellow)
+    #render.scene.add_geometry("box", box, grey)
+    #ender.scene.add_geometry("solid", solid, white)
+
+    render.setup_camera(60.0, [0, 0, 0], [2, 2, 2], [0, 0, 1])
+    render.scene.scene.set_sun_light([0.707, 0.0, -.707], [1.0, 1.0, 1.0],
+                                     75000)
+    render.scene.scene.enable_sun_light(True)
+    render.scene.show_axes(True)
+
+    img = render.render_to_image()
+    print("Saving image at test.png")
+    o3d.io.write_image("test.png", img, 9)
+
+    # render.setup_camera(60.0, [0, 0, 0], [-10, 0, 0], [0, 0, 1])
+    # img = render.render_to_image()
+    # print("Saving image at test2.png")
+    # o3d.io.write_image("test2.png", img, 9)
+
 if __name__ == "__main__":
 
     #demo()
     #unit_test()
-    demo2()
+    #demo2()
+    demo3()
     
 
 '''
