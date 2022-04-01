@@ -42,24 +42,11 @@ class MANO_Model(Model):
       self.remap_joints = tf.constant(
         [
           0,              # Wrist (0)
-          13, 14, 15, 16, # Thumb (1, 2, 3, 4)
-          1, 2, 3, 17,    # Index (5, 6, 7, 8)
-          4, 5, 6, 18,    # Middle (9, 10, 11, 12)
-          10, 11, 12, 19, # Ring (13, 14, 15, 16)
-          7, 8, 9, 20     # Little (Pinky) (17, 18, 19, 20)
-        ], 
-        dtype=tf.int32
-      )
-
-      # indices are MANO convention, the stored values are indices in RHD convention.
-      self.remap_joints_inv = tf.constant(
-        [
-          0,              
-          5, 6, 7, 9,
-          10, 11, 17, 18,
-          19, 13, 14, 15,
-          1, 2, 3, 4,
-          8, 12, 16, 20
+          16, 15, 14, 13, # Thumb (1, 2, 3, 4)
+          17, 3, 2, 1,    # Index (5, 6, 7, 8)
+          18, 6, 5, 4,    # Middle (9, 10, 11, 12)
+          19, 12, 11, 10, # Ring (13, 14, 15, 16)
+          20, 9, 8, 7     # Little (Pinky) (17, 18, 19, 20)
         ], 
         dtype=tf.int32
       )

@@ -534,7 +534,7 @@ def demo2():
     #render.scene.add_geometry("cyl", cyl, green)
     #render.scene.add_geometry("sphere", sphere, yellow)
 
-    '''
+    
     # [bs, 16, 3]
     keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
     print(cstr("keypoints3D"), keypoints3D)    
@@ -559,7 +559,7 @@ def demo2():
         lines.append( 
             [
                 i, 
-                mpi_model.remap_joints_inv.numpy()[mpi_model.K_remaped.numpy()[i]]
+                mpi_model.RHD_K.numpy()[i]
             ]
         )
     colors = [[1, 0, 0] for i in range(len(lines))]
@@ -579,7 +579,7 @@ def demo2():
     pcd = mesh.sample_points_uniformly(number_of_points=1000)
     vis.add_geometry(pcd)   
     vis.update_geometry(pcd)  
-    '''
+    
 
     globalRunning = True
     while globalRunning:
