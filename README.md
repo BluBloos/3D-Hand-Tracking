@@ -12,7 +12,9 @@ This project is still under development - for anything regarding this project, s
 ## Tensorflow implementation of MANO 
 
 We have written routines in Tensorflow for taking a MANO template mesh through pertubations as well as linear blend
-skinning. Pictured below is a rotated right hand rendered via open3D.
+skinning. Pictured below is a rotated right hand rendered via open3D. In this image, the hand mesh is sampled as a pointcloud, and the joint locations are rendered as spheres.
+
+<img width="413" alt="Screen Shot 2022-04-06 at 6 25 12 AM" src="https://user-images.githubusercontent.com/38915815/161954714-5e7b46cd-f3f9-445b-8329-2fefc9631994.png">
 
 # Steps for Using
 
