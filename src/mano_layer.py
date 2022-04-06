@@ -83,14 +83,19 @@ class MANO_Model(Model):
     T_shaped = self.T_bar + blend_shape(beta, self.S)
     B_p = blend_pose(pose, self.P)
 
-    posed_joints, mesh = lbs(pose, self.J, self.K, self.W, T_shaped, B_p)
+    posed_joints, posed_mesh = lbs(pose, self.J, self.K, self.W, T_shaped, B_p)
 
     # Add fingertips and remap to RHD convention.
-    tips = tf.gather(mesh, indices=[745, 333, 444, 555, 672], axis=1)
-    joints_full = tf.concat( [posed_joints, tips], axis=1)
-    joints_full = tf.gather(joints_full, indices=self.remap_joints, axis=1)
+    indices = [745, 333, 444, 555, 672]
+    fingertips = tf.gather(posed_mesh, indices, axis=1)
+    posed_joints = tf.concat( [posed_joints, fingertips], axis=1)
+    posed_joints = tf.gather(posed_joints, indices=self.remap_joints, axis=1)
 
-    mesh += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=778, axis=1)
-    joints_full += tf.repeat(tf.expand_dims(root_trans, axis=1), repeats=21, axis=1)
+    root_trans1 = tf.expand_dims(root_trans, axis=1)
+    root_trans1 = tf.repeat(root_trans1,778, axis=1)
+    root_trans2 = tf.expand_dims(root_trans, axis=1)
+    root_trans2 = tf.repeat(root_trans2, 21, axis=1)
+    posed_mesh += root_trans1
+    posed_joints += root_trans2
  
-    return mesh, joints_full
+    return posed_mesh, posed_joints
