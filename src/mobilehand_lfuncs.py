@@ -15,7 +15,15 @@ def LOSS_3D(pred, gt):
   # MSE = np.square(np.subtract(pred,gt)).mean()
   return _mse(pred, gt)
 
-# TODO: Implement.
-def LOSS_REG(pred, gt):
-  # U and L are upper and lower limits for the alpha params (which are the things that get mapped into theta MANO params).
+# beta is a tensor with shape of [bs, 10]. These are the estimated beta parameters that get fed to MANO.
+# pose is a tensor with shape of [bs, 48]. These are the estimated pose parameters that get fed to MANO.
+def LOSS_REG(beta, pose):
+
+  bs = beta.shape[0]
+  U = tf.constant([bs, 48])
+  L = tf.constant([bs, 48])
+
   return tf.zeros([1])
+
+
+  
