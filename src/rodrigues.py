@@ -1,9 +1,10 @@
 import tensorflow as tf
+from qmindcolors import cstr
 
 def rodrigues(rvector):
     batch_size = rvector.shape[0]
     angle = tf.norm(rvector, axis = 1, keepdims= True)
-    print(angle)
+    print(cstr("rodrigues_angle"), angle)
 
     sin = tf.expand_dims(tf.math.sin(angle), axis = 2)
     cos = tf.expand_dims(tf.math.cos(angle), axis = 2)
