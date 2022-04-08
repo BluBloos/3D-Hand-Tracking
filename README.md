@@ -6,8 +6,6 @@ DAIR @ QMIND
 
 We are working on a Tensorflow model to predict the 3D shape and pose of a hand using just a monocular RGB input. Our ultimate goal is to extend the model to predict two-hands through high hand-to-hand and hand-to-object contact.
 
-This project is still under development - for anything regarding this project, see the project <a href="/TODO.md">roadmap</a>.
-
 # Preliminary Results
 
 ## Tensorflow implementation of MANO 
