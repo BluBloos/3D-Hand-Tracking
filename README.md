@@ -4,7 +4,8 @@ This project is being developed under QMIND as a design team part of the DAIR di
 DAIR @ QMIND
 </a>**
 
-We aim to develop a Tensorflow model to predict the 3D shape and pose of two-hands through high hand-to-hand and hand-to-object contact, using just a monocular RGB input.
+We are working on a Tensorflow model to predict the 3D shape and pose of a hand using just a monocular RGB input. Our ultimate goal is to extend the model to predict two-hands through high hand-to-hand and hand-to-object contact.
+
 This project is still under development - for anything regarding this project, see the project <a href="/TODO.md">roadmap</a>.
 
 # Preliminary Results
@@ -21,6 +22,8 @@ skinning. Pictured below is a rotated right hand rendered via open3D. In this im
 Simply clone the repo and run all code blocks in src/HandTracking.ipynb. Pay careful attention to any comments at the top of the code blocks, as some are only meant to run when using the project from within Google Colab.
 
 ## Paper
+
+**Disclaimer:** Our paper is incomplete.
 
 To build the paper via LaTeX, you will need to install an appropriate Tex distribution on your system. See https://www.overleaf.com/learn/latex/Choosing_a_LaTeX_Compiler.
 
