@@ -10,7 +10,9 @@ def rodrigues(rvector):
     sin = tf.expand_dims(tf.math.sin(angle), axis = 2)
     cos = tf.expand_dims(tf.math.cos(angle), axis = 2)
     angles = tf.unstack(angle, axis = 0)
-    where = np.where(angles == tf.constant([0]))[0]
+    where = tf.transpose(tf.where(angles == tf.constant([0])))[0]
+    print('\n',where)
+    print('\n',where.shape)
     for i in where:
         angles[i] = tf.constant([1.0])
     
