@@ -4,7 +4,6 @@ Legacy/.DS_Store
 Reference/.DS_Store
 .DS_Store
 src/.ipynb_checkpoints/
-SH_RHD
 src/__pycache__
 mano_v1_2/
 google_credentials.json
