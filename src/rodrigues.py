@@ -1,5 +1,6 @@
 import tensorflow as tf
 from qmindcolors import cstr
+import numpy as np
 
 def rodrigues(rvector):
     batch_size = rvector.shape[0]
@@ -9,10 +10,16 @@ def rodrigues(rvector):
     sin = tf.expand_dims(tf.math.sin(angle), axis = 2)
     cos = tf.expand_dims(tf.math.cos(angle), axis = 2)
     angles = tf.unstack(angle, axis = 0)
+    where = np.where(angles == tf.constant([0]))[0]
+    for i in where:
+        angles[i] = tf.constant([1.0])
     
-    for i in range(batch_size):
-        angles[i] = tf.cond(angles[i] == 0, true_fn=lambda:tf.constant([1.0]), false_fn=lambda:angles[i])
+    # print('\n', angles)
+    
+    # for i in range(batch_size):
+    #     angles[i] = tf.cond(angles[i] == 0, true_fn=lambda:tf.constant([1.0]), false_fn=lambda:angles[i])
     angle = tf.stack(angles) 
+    print('\n', angle)
     runit = rvector/angle
     
     
