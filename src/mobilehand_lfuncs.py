@@ -3,12 +3,12 @@
 import tensorflow as tf
 import numpy as np
 
-# TODO: Implement.
-# Oscar.
-def LOSS_2D(pred, gt):
-  return tf.zeros([1])
-
 _mse = tf.keras.losses.MeanSquaredError()
+
+# pred is a tensor with shape of [bs, 21, 3]. These are the estimated 3D keypoints by MANO.
+# gt is a tensor with shape of [bs, 21, 3]. These are the ground-truth 3D keypoints provided by RHD.
+def LOSS_2D(pred, gt):
+  return _mse(pred, gt)
 
 # TODO: Implement.
 def LOSS_3D(pred, gt):
