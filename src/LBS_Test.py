@@ -373,6 +373,7 @@ y_train = np.zeros( (32, 21, 3) )
 k_train = np.zeros( (32, 3, 3) )
 anno_train_path = '../RHD_small/training/anno_training.pickle'
 
+# Remember, this is a dense load.
 def load_anno(path, arr):
   anno_all = []
   count = 0
@@ -387,16 +388,13 @@ def load_anno(path, arr):
     k_train[count, :, :] = matrixK
     case1 = np.sum(kp_visible[0:21])
     case2 = np.sum(kp_visible[21:])
-    # valid_case = (case1 > 0 and case2 == 0) or (case1 == 0 and case2 > 0) 
-    # if(valid_case):
-    if(case1 ==0):
-      arr[count,:,:]= value['xyz'][21:42]
-      count+=1
-    if(case2 == 0):
-      arr[count,:,:]= value['xyz'][:21]
-      count+=1
+    if(case1 == 0):
+      arr[count, :, :]= value['xyz'][21:42]
+    else:
+      arr[count, :, :]= value['xyz'][:21]
+    count+=1
 
-def demo2(render_RHD=False):
+def demo2(render_RHD=False, offset=0):
     
     load_anno(anno_train_path, y_train)
 
@@ -433,7 +431,7 @@ def demo2(render_RHD=False):
         [0,0,0],
         [0,0,0]
     ]], dtype=tf.float32), repeats=[batch_size], axis=0)
-    print(cstr("pose"), pose)
+    # print(cstr("pose"), pose)
 
     T_posed, keypoints3D = mpi_model(beta, pose, tf.zeros([batch_size, 3]))
 
@@ -454,14 +452,14 @@ def demo2(render_RHD=False):
     if (render_RHD):
         for j in range(1):
 
-            y_index = int(train_list[j][0:5])
+            y_index = int(train_list[j + offset][0:5])
             print(cstr("y_index"), y_index)
             train_image_y = y_train[y_index] # [21, 3]
             k_y = k_train[y_index]
-            print(cstr("k_y"), k_y)
+            #print(cstr("k_y"), k_y)
             k_y_batched = np.repeat(np.expand_dims(k_y, axis=0), 21, axis=0 )
-            print(cstr("k_y_batched"), k_y_batched)
-            print(cstr("shape="), k_y_batched.shape)
+            #print(cstr("k_y_batched"), k_y_batched)
+            #print(cstr("shape="), k_y_batched.shape)
             # Put the hand in the center (but only subtract in the x: dimension).
             train_image_y -= np.array([0.0, 0.0, train_image_y[0][2]], dtype=np.float32)
             train_image_y *= 10
@@ -538,13 +536,13 @@ def demo2(render_RHD=False):
     
     # [bs, 16, 3]
     keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
-    print(cstr("keypoints3D"), keypoints3D)    
-    print(cstr("keypoints3D_pylist"), keypoints3D_pylist)
+    #print(cstr("keypoints3D"), keypoints3D)    
+    #print(cstr("keypoints3D_pylist"), keypoints3D_pylist)
 
     i = 0
     for keypoint in keypoints3D_pylist:
         keypoint = tf.squeeze(keypoint)
-        print(cstr("squeezed"), keypoint.numpy())
+        #print(cstr("squeezed"), keypoint.numpy())
         msphere = o3d.geometry.TriangleMesh.create_sphere(0.05)
         msphere.paint_uniform_color([0, 0.75, 0])
         msphere.compute_vertex_normals()
@@ -710,7 +708,7 @@ if __name__ == "__main__":
 
     #demo()
     #unit_test()
-    demo2()
+    demo2(render_RHD=True, offset=1)
     #demo3()
     
 
