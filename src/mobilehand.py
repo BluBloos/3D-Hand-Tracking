@@ -26,6 +26,6 @@ def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
   root_trans = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ batch_size, 3 ]))
   mano_mesh, mano_keypoints = mano_model(beta, pose, root_trans)
 
-  return tf.keras.Model(inputs=inputs, outputs=[mano_mesh,mano_keypoints])
+  return tf.keras.Model(inputs=inputs, outputs=[beta, pose, mano_mesh, mano_keypoints])
 
 
