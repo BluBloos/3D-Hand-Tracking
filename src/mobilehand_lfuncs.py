@@ -8,7 +8,12 @@ _mse = tf.keras.losses.MeanSquaredError()
 # pred is a tensor with shape of [bs, 21, 3]. These are the estimated 3D keypoints by MANO.
 # gt is a tensor with shape of [bs, 21, 3]. These are the ground-truth 3D keypoints provided by RHD.
 def LOSS_2D(pred, gt):
-  intrinsic = tf.constant([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
+  intrinsic = tf.constant(
+    [
+      [1.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0],
+      [0.0, 0.0, 0.0]
+    ])
   pred = tf.matmul(pred, intrinsic)
   gt = tf.matmul(gt, intrinsic)
   return _mse(pred, gt)
