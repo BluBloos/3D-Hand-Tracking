@@ -34,6 +34,6 @@ def LOSS_REG(beta, pose):
   return tf.zeros([1])
 
 
-#Master loss function
-def LOSS():
-  return 
+# Master loss function
+def LOSS( beta, pose, pred, gt ):
+  return 1e3 * LOSS_REG(beta, pose) + 1e2 * ( LOSS_2D(pred, gt) + LOSS_3D(pred, gt))
