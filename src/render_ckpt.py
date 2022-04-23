@@ -73,7 +73,7 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, tem
             [0,0,0]
         ]], dtype=tf.float32), repeats=[batch_size], axis=0)
 
-        _beta, _pose, T_posed, keypoints3D = mpi_model(beta, pose, 
+        T_posed, keypoints3D = mpi_model(beta, pose, 
             tf.constant([[0.0,0.0,0.0]]))
 
     green = rendering.MaterialRecord()
