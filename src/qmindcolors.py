@@ -10,3 +10,5 @@ class bcolors:
     UNDERLINE = '\033[4m'
 def cstr(str): # cyan string
     return bcolors.OKCYAN + str + bcolors.ENDC
+def rstr(str): # red string
+    return bcolors.FAIL + str + bcolors.ENDC
