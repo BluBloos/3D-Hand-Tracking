@@ -41,7 +41,14 @@ if __name__ == "__main__":
         T_bar = tf.convert_to_tensor(manoRight['v_template'], dtype=tf.float32) # shape of (778, 3)
         F = np.array(manoRight['f'], dtype=np.int32)  
 
-        vis = o3d.visualization.Visualizer()
+        globalRunning = True
+        def key_callback(vis):
+          global globalRunning
+          globalRunning = False
+          return False
+
+        vis = o3d.visualization.VisualizerWithKeyCallback()
+        vis.register_key_callback( ord('.') , key_callback)
         vis.create_window()
         
         # create the meshes
@@ -58,7 +65,7 @@ if __name__ == "__main__":
         beta = tf.zeros([5, 10])
         frame_count = 0
 
-        globalRunning = True
+        
         while globalRunning:
             # Now we want to generate some random blend shapes. Let's start with no pertubations at all.
             if (frame_count >= 30):
@@ -106,9 +113,5 @@ windows does not respond to clicking the close button.
   Ctrl/Cmd + V : Paste view status from clipboard.
 
 -- General control --
-  Q, Esc       : Exit window.
-  H            : Print help message.
-  P, PrtScn    : Take a screen capture.
-  D            : Take a depth capture.
-  O            : Take a capture of current rendering settings.
+  .       : Exit window.
 '''
