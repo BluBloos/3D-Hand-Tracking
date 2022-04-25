@@ -77,7 +77,7 @@ def demo2(render_RHD=False, offset=0):
         [0,0,0], [0,0,0], [0,0,0], [0,0,0]
     ]], dtype=tf.float32), repeats=[batch_size], axis=0)
 
-    T_posed, keypoints3D = mpi_model(beta, pose, 0.5)
+    T_posed, keypoints3D = mpi_model(beta, pose, 0.5, 0.1)
 
     globalRunning = True
     def key_callback(vis):

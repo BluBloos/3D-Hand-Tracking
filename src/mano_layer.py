@@ -90,7 +90,7 @@ class MANO_Model(Model):
         dtype=tf.int32
       )
 
-      # indices are RHD convention, values in K are MANO convention.
+      # Indices are RHD convention, values in K are MANO convention.
       self.K_remaped = tf.gather(
         tf.concat([tf.constant(self.K, dtype=tf.int32), tf.constant([15, 3, 6, 12, 9])], axis=0),
         indices=self.remap_joints, axis=0
@@ -117,7 +117,7 @@ class MANO_Model(Model):
         # Thumb
         [[ 0.00, 2.00], [-0.83, 0.66], [ 0.00, 0.50]], # MCP
         [[-0.15,-1.60], [ 0.00, 0.00], [ 0.00, 0.50]], # PIP
-        [[ 0.00, 0.00], [-0.50, 0.00], [-1.57, 1.08]]])# DIP
+        [[ 0.00, 0.00], [-0.50, 0.00], [-1.57, 1.08]]]) # DIP
 
       self.L = tf.expand_dims(tf.reshape(plim[:, :, 0], shape=(45)), axis=0)
       self.U = tf.expand_dims(tf.reshape(plim[:, :, 1], shape=(45)), axis=0)
@@ -127,7 +127,7 @@ class MANO_Model(Model):
     except Exception as e:
       print(e, "Unable to find MANO_RIGHT.pkl")
 
-  def call(self, beta, pose, scale, training=False):
+  def call(self, beta, pose, scale, depth, training=False):
 
     bs = beta.shape[0]
     T_shaped = self.T_bar + blend_shape(beta, self.S)
@@ -152,5 +152,9 @@ class MANO_Model(Model):
 
     posed_mesh = posed_mesh * scaling_factor
     posed_joints = posed_joints * scaling_factor
+
+    root_trans = tf.constant( [[ [0.0, 0.0, depth] ]] )
+    posed_mesh += root_trans
+    posed_joints += root_trans
  
     return posed_mesh, posed_joints
