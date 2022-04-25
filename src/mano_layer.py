@@ -146,14 +146,14 @@ class MANO_Model(Model):
     # ensures that this distance is exactly 0.1537328322252615.
 
     mano_scale = tf.math.sqrt(tf.reduce_sum(tf.math.square(posed_joints[:, 0] - posed_joints[:, 8]), axis=1))
-    print(cstr("mano_scale"), mano_scale)
+    # print(cstr("mano_scale"), mano_scale)
     mano_scale = tf.reshape(mano_scale, shape=[bs, 1, 1])
     scaling_factor = (tf.repeat(tf.constant([[[0.1537328322252615]]]), bs, axis=0) / mano_scale) * scale
 
     posed_mesh = posed_mesh * scaling_factor
     posed_joints = posed_joints * scaling_factor
 
-    root_trans = tf.constant( [[ [0.0, 0.0, depth] ]] )
+    root_trans = tf.reshape(depth, shape=[-1, 1, 3])
     posed_mesh += root_trans
     posed_joints += root_trans
  

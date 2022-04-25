@@ -15,7 +15,7 @@ def MAKE_REGRESSION_MODULE(batch_size):
   model.add(tf.keras.layers.Dropout(0.5))
   model.add(tf.keras.layers.Dense(288, activation = 'relu'))
   model.add(tf.keras.layers.Dropout(0.5))
-  model.add(tf.keras.layers.Dense(61, activation = 'relu'))
+  model.add(tf.keras.layers.Dense(MODEL_OUPUTS, activation = 'relu'))
   
   params = tf.zeros((batch_size, MODEL_OUPUTS))
   model.summary()
