@@ -6,6 +6,7 @@ import cv2
 from tensorflow.keras import Model
 import os
 import pickle
+from qmindcolors import cstr
 
 from mano_bs import blend_shape
 from mano_bp import blend_pose
@@ -126,8 +127,9 @@ class MANO_Model(Model):
     except Exception as e:
       print(e, "Unable to find MANO_RIGHT.pkl")
 
-  def call(self, beta, pose, training=False):
+  def call(self, beta, pose, scale, training=False):
 
+    bs = beta.shape[0]
     T_shaped = self.T_bar + blend_shape(beta, self.S)
     B_p = blend_pose(pose, self.P)
 
@@ -139,11 +141,16 @@ class MANO_Model(Model):
     posed_joints = tf.concat( [posed_joints, fingertips], axis=1)
     posed_joints = tf.gather(posed_joints, indices=self.remap_joints, axis=1)
 
-    # root_trans1 = tf.expand_dims(root_trans, axis=1)
-    # root_trans1 = tf.repeat(root_trans1,778, axis=1)
-    # root_trans2 = tf.expand_dims(root_trans, axis=1)
-    # root_trans2 = tf.repeat(root_trans2, 21, axis=1)
-    # posed_mesh += root_trans1
-    # posed_joints += root_trans2
+    # NOTE: We define the scale as the distance between the root of the hand
+    # and the knuckle on the index finger. Passing into the model a scale of 1.0
+    # ensures that this distance is exactly 0.1537328322252615.
+
+    mano_scale = tf.math.sqrt(tf.reduce_sum(tf.math.square(posed_joints[:, 0] - posed_joints[:, 8]), axis=1))
+    print(cstr("mano_scale"), mano_scale)
+    mano_scale = tf.reshape(mano_scale, shape=[bs, 1, 1])
+    scaling_factor = (tf.repeat(tf.constant([[[0.1537328322252615]]]), bs, axis=0) / mano_scale) * scale
+
+    posed_mesh = posed_mesh * scaling_factor
+    posed_joints = posed_joints * scaling_factor
  
     return posed_mesh, posed_joints

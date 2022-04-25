@@ -32,8 +32,9 @@ def download_image(path):
   _image = resize(_image, IMAGE_SIZE)
   return _image
 
-y_train = np.zeros( (32, 21, 3) )
-k_train = np.zeros( (32, 3, 3) )
+Y_TRAIN_COUNT = 35
+y_train = np.zeros( (Y_TRAIN_COUNT, 21, 3) )
+k_train = np.zeros( (Y_TRAIN_COUNT, 3, 3) )
 anno_train_path = '../RHD_small/training/anno_training.pickle'
 
 # Remember, this is a dense load.
@@ -44,7 +45,7 @@ def load_anno(path, arr):
     anno_all = pickle.load(f)
 
   for key, value in anno_all.items():
-    if(count > BATCH_SIZE - 1):
+    if(count >= Y_TRAIN_COUNT):
       break
     kp_visible = (value['uv_vis'][:, 2] == 1)
     matrixK = value['K']
@@ -76,7 +77,7 @@ def demo2(render_RHD=False, offset=0):
         [0,0,0], [0,0,0], [0,0,0], [0,0,0]
     ]], dtype=tf.float32), repeats=[batch_size], axis=0)
 
-    T_posed, keypoints3D = mpi_model(beta, pose, tf.zeros([batch_size, 3]))
+    T_posed, keypoints3D = mpi_model(beta, pose, 0.5)
 
     globalRunning = True
     def key_callback(vis):
@@ -100,9 +101,10 @@ def demo2(render_RHD=False, offset=0):
         for j in range(1):
 
             y_index = int(train_list[j + offset][0:5])
-            print(cstr("y_index"), y_index)
+            #print(cstr("y_index"), y_index)
             train_image_y = y_train[y_index] # [21, 3]
-            k_y = k_train[y_index]   
+            k_y = k_train[y_index]
+            print(cstr("train_image_y"), train_image_y)   
             k_y_batched = np.repeat(np.expand_dims(k_y, axis=0), 21, axis=0 )
         
             # Put the hand in the center (but only subtract in the x: dimension).
@@ -188,4 +190,4 @@ def demo2(render_RHD=False, offset=0):
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
 
 if __name__ == "__main__":
-    demo2(render_RHD=True, offset=1)
+    demo2(render_RHD=True, offset=3)
