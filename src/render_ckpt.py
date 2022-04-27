@@ -42,12 +42,15 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, tem
 
     annot_2D, annot_3D, annot_K = annot
 
+    scale = np.sqrt(np.sum(np.square(annot_3D[0] - annot_3D[8]), axis=0, keepdims=True)) / 0.1537328322252615 
+    scale = np.repeat(np.expand_dims(scale, axis=0), repeats=32, axis=0)
+
     # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.
     _beta, _pose, T_posed, keypoints3D = model(
         (
             np.repeat(
                 np.expand_dims(eval_image, 0), 32, axis=0),
-            np.repeat(np.array([[1]]), repeats=32, axis=0),
+            scale,
             tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
         )
     )
