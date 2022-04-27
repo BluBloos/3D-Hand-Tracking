@@ -14,7 +14,7 @@ from mano_layer import MANO_Model
 def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
   inputs = tf.keras.layers.Input(shape=[image_size, image_size, image_channels])
   scale = tf.keras.layers.Input(shape=[1])
-  z_depth = tf.keras.layers.Input(shape=[1])
+  z_depth = tf.keras.layers.Input(shape=[3])
 
   mobile_net = MAKE_MOBILE_NET(image_size, image_channels)
   reg_module = MAKE_REGRESSION_MODULE(batch_size)
