@@ -6,6 +6,7 @@ import cv2
 from tensorflow.keras import Model
 import os
 import pickle
+from qmindcolors import cstr
 
 from mano_bs import blend_shape
 from mano_bp import blend_pose
@@ -38,6 +39,28 @@ class MANO_Model(Model):
       self.J = tf.convert_to_tensor(self.J.todense(), dtype=tf.float32) # Need to convert sparse to dense matrix
       self.W = tf.convert_to_tensor(self.W, dtype=tf.float32)
 
+      # move T_Bar such that it is at (0,0,0)
+      root_pos = tf.constant([[[0.09566993,  0.00638343,  0.00618631]]])
+      self.T_bar -= root_pos
+
+      # Apply a rotation to make the MANO hand be in a more sensible default position.
+      batch_size = 1
+      beta = tf.zeros([batch_size, 10])
+      pose = tf.repeat(tf.constant([[
+          [ 
+            # NOTE: this rotation in axis-angle representation was 
+            # determined by the handy https://www.andre-gaschler.com/rotationconverter/
+            0.5773503 * 2.0943951, 
+            0.5773503 * 2.0943951, 
+            0.5773503 * 2.0943951
+          ], [0,0,0], [0,0,0], 
+          [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0],
+          [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0]
+      ]], dtype=tf.float32), repeats=[batch_size], axis=0)
+      B_p = blend_pose(pose, self.P)
+      posed_joints, posed_mesh = lbs(pose, self.J, self.K, self.W, self.T_bar, B_p)
+      self.T_bar = posed_mesh[0] # Select just first batch.
+
       # indices are the RHD convention, the stored values are indices in MANO convention.
       self.remap_joints = tf.constant(
         [
@@ -67,7 +90,7 @@ class MANO_Model(Model):
         dtype=tf.int32
       )
 
-      # indices are RHD convention, values in K are MANO convention.
+      # Indices are RHD convention, values in K are MANO convention.
       self.K_remaped = tf.gather(
         tf.concat([tf.constant(self.K, dtype=tf.int32), tf.constant([15, 3, 6, 12, 9])], axis=0),
         indices=self.remap_joints, axis=0
@@ -94,7 +117,7 @@ class MANO_Model(Model):
         # Thumb
         [[ 0.00, 2.00], [-0.83, 0.66], [ 0.00, 0.50]], # MCP
         [[-0.15,-1.60], [ 0.00, 0.00], [ 0.00, 0.50]], # PIP
-        [[ 0.00, 0.00], [-0.50, 0.00], [-1.57, 1.08]]])# DIP
+        [[ 0.00, 0.00], [-0.50, 0.00], [-1.57, 1.08]]]) # DIP
 
       self.L = tf.expand_dims(tf.reshape(plim[:, :, 0], shape=(45)), axis=0)
       self.U = tf.expand_dims(tf.reshape(plim[:, :, 1], shape=(45)), axis=0)
@@ -104,8 +127,9 @@ class MANO_Model(Model):
     except Exception as e:
       print(e, "Unable to find MANO_RIGHT.pkl")
 
-  def call(self, beta, pose, root_trans, training=False):
+  def call(self, beta, pose, scale, depth, training=False):
 
+    bs = beta.shape[0]
     T_shaped = self.T_bar + blend_shape(beta, self.S)
     B_p = blend_pose(pose, self.P)
 
@@ -117,11 +141,25 @@ class MANO_Model(Model):
     posed_joints = tf.concat( [posed_joints, fingertips], axis=1)
     posed_joints = tf.gather(posed_joints, indices=self.remap_joints, axis=1)
 
-    root_trans1 = tf.expand_dims(root_trans, axis=1)
-    root_trans1 = tf.repeat(root_trans1,778, axis=1)
-    root_trans2 = tf.expand_dims(root_trans, axis=1)
-    root_trans2 = tf.repeat(root_trans2, 21, axis=1)
-    posed_mesh += root_trans1
-    posed_joints += root_trans2
+    # NOTE: We define the scale as the distance between the root of the hand
+    # and the knuckle on the index finger. Passing into the model a scale of 1.0
+    # ensures that this distance is exactly 0.1537328322252615.
+    #print(cstr("scale"), scale)
+    mano_scale = tf.math.sqrt(tf.reduce_sum(
+      tf.math.square(posed_joints[:, 0] - posed_joints[:, 8]), 
+      axis=1, keepdims=True))
+    #print(cstr("mano_scale"), mano_scale)
+    scaling_factor = tf.math.divide(scale, mano_scale) * 0.1537328322252615
+    #print(cstr("scaling_factor"), scaling_factor)  
+    scaling_factor = tf.expand_dims(scaling_factor, axis=1) 
+    #print(cstr("scaling_factor"), scaling_factor)   
+
+    posed_mesh = posed_mesh * scaling_factor
+    posed_joints = posed_joints * scaling_factor
+
+    #print(cstr("depth"), depth)
+    root_trans = tf.expand_dims(depth, axis=1)
+    posed_mesh += root_trans
+    posed_joints += root_trans
  
     return posed_mesh, posed_joints
