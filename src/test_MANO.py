@@ -138,8 +138,10 @@ def demo2(render_RHD=False, offset=0):
         [0,0,0], [0,0,0], [0,0,0], [0,0,0]
     ]], dtype=tf.float32), repeats=[batch_size], axis=0)
 
-    T_posed, keypoints3D = mpi_model(beta, pose, 1, train_image_y[0][2])
-    
+    T_posed, keypoints3D = mpi_model(beta, pose)
+    print(cstr("keypoints3D"), keypoints3D)    
+
+
     # [bs, 16, 3]
     keypoints3D_pylist = tf.unstack( keypoints3D, axis=1 )
     

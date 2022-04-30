@@ -1,4 +1,5 @@
 
+from timeit import repeat
 import open3d as o3d
 import open3d.visualization.rendering as rendering
 from mano_layer import MANO_Model
@@ -7,6 +8,7 @@ import os
 import tensorflow as tf
 from qmindcolors import cstr
 import matplotlib.pyplot as plt
+from mobilehand import camera_extrinsic
 
 # with reference to this post https://www.codeitbro.com/send-email-using-python/#step-1-8211connect-to-the-mail-server. 
 # Seems pretty bad tbh but it's gonna do the job??
@@ -38,22 +40,28 @@ def send_email(image_file):
 
 # ckpt_index is an index for the current checkpoint that the model param is loaded
 # with weights.
-def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, template_override=False):
+def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, camR_override=None):
 
     annot_2D, annot_3D, annot_K = annot
 
     scale = np.sqrt(np.sum(np.square(annot_3D[0] - annot_3D[8]), axis=0, keepdims=True)) / 0.1537328322252615 
     scale = np.repeat(np.expand_dims(scale, axis=0), repeats=32, axis=0)
-
+    z_depth = tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
     # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.
-    _beta, _pose, T_posed, keypoints3D = model(
-        (
-            np.repeat(
-                np.expand_dims(eval_image, 0), 32, axis=0),
-            scale,
-            tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
-        )
-    )
+    _beta, _pose, T_posed, keypoints3D, cam_R = model(
+        np.repeat(np.expand_dims(eval_image, 0), 32, axis=0))
+
+    if camR_override != None:
+        cam_R = tf.repeat(camR_override, repeats=32, axis=0)
+
+    # print(cstr("T_posed"), T_posed)
+    # print(cstr("keypoints3D"), keypoints3D)
+    # print(cstr("camR"), cam_R)
+    T_posed = camera_extrinsic(cam_R, z_depth, scale, T_posed)
+    keypoints3D = camera_extrinsic(cam_R, z_depth, scale, keypoints3D)
+    # print("after!")
+    # print(cstr("T_posed"), T_posed)
+    # print(cstr("keypoints3D"), keypoints3D)
 
     render = rendering.OffscreenRenderer(1080, 1080)
     
@@ -61,20 +69,6 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, tem
     # model or something like that.
     mano_dir = os.path.join("..", "mano_v1_2")
     mpi_model = MANO_Model(mano_dir)  
-
-    if template_override:
-        batch_size = 1
-        beta = tf.zeros([batch_size, 10])
-        pose = tf.repeat(tf.constant([[
-            [0,0,0], [0,0,0], [0,0,0],
-            [0,0,0], [0,0,0], [0,0,0],
-            [0,0,0], [0,0,0], [0,0,0],
-            [0,0,0], [0,0,0], [0,0,0],
-            [0,0,0], [0,0,0], [0,0,0],
-            [0,0,0]
-        ]], dtype=tf.float32), repeats=[batch_size], axis=0)
-
-        T_posed, keypoints3D = mpi_model(beta, pose, 1, 0)
 
     green = rendering.MaterialRecord()
     green.base_color = [0.0, 0.5, 0.0, 1.0]
