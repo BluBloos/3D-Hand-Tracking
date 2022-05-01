@@ -5,12 +5,16 @@ import numpy as np
 from mobilehand import camera_extrinsic
 from mobilehand import ortho_camera
 
-# We're going to try this out and see what happens...
-#def _mse(pred, gt):
-#  res = tf.reduce_mean(tf.math.reduce_sum(tf.square(pred - gt), axis=1, keepdims=True), axis=0)
-#  return res
+# works for [bs, point_count, 3]
+def mse(pred, gt):
+  bs = pred.shape[0]
+  point_count = pred.shape[1]
+  mse = tf.reduce_sum(tf.reduce_sum(tf.square(pred - gt), axis=2), axis=1) / point_count
+  loss = tf.reduce_sum(mse, axis=0) / bs 
+  return loss
 
-_mse = tf.keras.losses.MeanSquaredError()
+#_mse = tf.keras.losses.MeanSquaredError()
+_mse = mse
 
 # pred is a tensor with shape of [bs, 21, 3]. These are the estimated 3D keypoints by MANO.
 # gt is a tensor with shape of [bs, 21, 3]. These are the ground-truth 3D keypoints provided by RHD.
@@ -19,8 +23,9 @@ def LOSS_2D(cam_R, depth, scale, pred, gt):
   gt = ortho_camera(gt)
   return _mse(pred, gt)
 
-def LOSS_3D(pred, gt):
+def LOSS_3D(cam_R, depth, scale, pred, gt):
   # MSE = np.square(np.subtract(pred,gt)).mean()
+  pred = camera_extrinsic(cam_R, depth, scale, pred)
   return _mse(pred, gt)
 
 # beta is a tensor with shape of [bs, 10]. These are the estimated beta parameters that get fed to MANO.
@@ -38,5 +43,6 @@ def LOSS_REG(beta, pose, L, U):
 
 # Master loss function
 def LOSS( beta, pose, L, U, cam_R, depth, scale, pred, gt ):
-  return 1e3 * LOSS_REG(beta, pose, L, U) + 1e2 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + 1e2 * LOSS_3D(pred, gt)
+  return 1e3 * LOSS_REG(beta, pose, L, U) + 1e2 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + \
+    1e2 * LOSS_3D(cam_R, depth, scale, pred, gt)
   #return (LOSS_2D(cam_R, depth, scale, pred, gt))
