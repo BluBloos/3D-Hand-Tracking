@@ -20,9 +20,9 @@ def MAKE_REGRESSION_MODULE(batch_size):
   params = tf.zeros((batch_size, MODEL_OUPUTS))
   model.summary()
 
-  for i in range(3):
-    new_input = tf.concat([inputs,params],axis=1)     
-    params = model(new_input)
+  for i in range(4):
+    new_input = tf.concat([inputs, params],axis=1)     
+    params += model(new_input)
   
   return tf.keras.Model(inputs=inputs, outputs=params)
 

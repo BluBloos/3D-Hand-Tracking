@@ -34,15 +34,19 @@ def LOSS_REG(beta, pose, L, U):
   # U and L are upper and lower limits for the alpha params (which are the things that get mapped into theta MANO params).
   # U and L are only shape R^45.
   pose = pose[ :, 3:]
-  loss = tf.square(tf.norm(beta)) + \
-    tf.reduce_sum(
-      tf.math.maximum(L - pose, tf.zeros(pose.shape)) + \
-      tf.math.maximum(pose - U, tf.zeros(pose.shape))
-    )
+  bs = pose.shape[0]
+  loss = tf.reduce_sum(tf.square(beta), axis=1)
+  loss += tf.reduce_sum(
+    tf.math.maximum(L - pose, tf.zeros(pose.shape)) + \
+    tf.math.maximum(pose - U, tf.zeros(pose.shape)), axis=1
+  )
+  loss = tf.reduce_sum(loss, axis=0) / bs
   return loss
 
 # Master loss function
 def LOSS( beta, pose, L, U, cam_R, depth, scale, pred, gt ):
   return 1e3 * LOSS_REG(beta, pose, L, U) + 1e2 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + \
     1e2 * LOSS_3D(cam_R, depth, scale, pred, gt)
-  #return (LOSS_2D(cam_R, depth, scale, pred, gt))
+  # return 1e2 * (
+  #  LOSS_2D(cam_R, depth, scale, pred, gt) + LOSS_3D(cam_R, depth, scale, pred, gt) + LOSS_REG(beta, pose, L, U) / 50
+  # )
