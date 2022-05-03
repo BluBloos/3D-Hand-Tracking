@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from mobilehand import camera_extrinsic
 from mobilehand import ortho_camera
+from mobilehand import _camera_extrinsic_post_rot
 
 # works for [bs, point_count, 3]
 def mse(pred, gt):
@@ -25,7 +26,7 @@ def LOSS_2D(cam_R, depth, scale, pred, gt):
 
 def LOSS_3D(cam_R, depth, scale, pred, gt):
   # MSE = np.square(np.subtract(pred,gt)).mean()
-  pred = camera_extrinsic(cam_R, depth, scale, pred)
+  pred = _camera_extrinsic_post_rot(depth, scale, pred)
   return _mse(pred, gt)
 
 # beta is a tensor with shape of [bs, 10]. These are the estimated beta parameters that get fed to MANO.
@@ -45,8 +46,8 @@ def LOSS_REG(beta, pose, L, U):
 
 # Master loss function
 def LOSS( beta, pose, L, U, cam_R, depth, scale, pred, gt ):
-  return 1e3 * LOSS_REG(beta, pose, L, U) + 1e2 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + \
-    1e2 * LOSS_3D(cam_R, depth, scale, pred, gt)
+  return 1e0 * LOSS_REG(beta, pose, L, U) + 1e1 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + \
+    1e1 * LOSS_3D(cam_R, depth, scale, pred, gt)
   # return 1e2 * (
   #  LOSS_2D(cam_R, depth, scale, pred, gt) + LOSS_3D(cam_R, depth, scale, pred, gt) + LOSS_REG(beta, pose, L, U) / 50
   # )

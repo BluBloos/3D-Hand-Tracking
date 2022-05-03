@@ -10,6 +10,10 @@ from qmindcolors import cstr
 import matplotlib.pyplot as plt
 from mobilehand import camera_extrinsic
 
+from mobilehand_lfuncs import LOSS_2D
+from mobilehand_lfuncs import LOSS_3D
+from mobilehand_lfuncs import LOSS_REG
+
 # with reference to this post https://www.codeitbro.com/send-email-using-python/#step-1-8211connect-to-the-mail-server. 
 # Seems pretty bad tbh but it's gonna do the job??
 import smtplib
@@ -48,7 +52,7 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, cam
     scale = np.repeat(np.expand_dims(scale, axis=0), repeats=32, axis=0)
     z_depth = tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
     # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.
-    _beta, _pose, T_posed, keypoints3D, cam_R = model(
+    _beta, _pose, T_posed, _keypoints3D, cam_R = model(
         np.repeat(np.expand_dims(eval_image, 0), 32, axis=0))
 
     if camR_override != None:
@@ -58,7 +62,7 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, cam
     # print(cstr("keypoints3D"), keypoints3D)
     # print(cstr("camR"), cam_R)
     T_posed = camera_extrinsic(cam_R, z_depth, scale, T_posed)
-    keypoints3D = camera_extrinsic(cam_R, z_depth, scale, keypoints3D)
+    keypoints3D = camera_extrinsic(cam_R, z_depth, scale, _keypoints3D)
     # print("after!")
     # print(cstr("T_posed"), T_posed)
     # print(cstr("keypoints3D"), keypoints3D)
@@ -167,5 +171,14 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, cam
     fig.add_subplot(rows, columns, 2)
     plt.imshow(img1)
     plt.savefig(img_filepath)
-    #send_email(img_filepath)
-    #print(cstr("Sent email of"), img_filepath)
+    # fig.show()
+    # send_email(img_filepath)
+    # print(cstr("Sent email of"), img_filepath)
+
+    # after all plotting, we print the loss for this specific plot!
+    loss2d = LOSS_2D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
+    loss3d = LOSS_3D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
+    loss_reg = LOSS_REG(_beta, _pose, mpi_model.L, mpi_model.U)
+    print(cstr("loss2d"), loss2d)
+    print(cstr("loss3d"), loss3d)
+    print(cstr("loss_reg"), loss_reg)

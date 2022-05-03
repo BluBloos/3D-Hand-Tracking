@@ -10,3 +10,4 @@ google_credentials.json
 src/*.png
 checkpoints/
 RHD_published_v2
+env/
