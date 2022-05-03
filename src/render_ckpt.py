@@ -163,7 +163,7 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, cam
     columns = 2
     rows = 1
     fig.add_subplot(rows, columns, 1)
-    plt.imshow(eval_image)
+    plt.imshow(eval_image / 255)
     fig.add_subplot(rows, columns, 2)
     plt.imshow(img1)
     plt.savefig(img_filepath)
