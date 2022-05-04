@@ -6,7 +6,9 @@ from mano_layer import MANO_Model
 from qmindcolors import cstr
 import sys, os
 import open3d as o3d
-from render_ckpt import render_checkpoint_image
+import socket
+import sys
+from _thread import *
 
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
@@ -191,5 +193,52 @@ def demo2(render_RHD=False, offset=0):
     vis.destroy_window()
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
 
+
+list_of_clients = []
+
+def clientthread(conn, addr): 
+    conn.send(b"Welcome to this chatroom!")
+    while True:
+        try:
+            message = conn.recv(2048)
+            if message:
+                message_to_send = "<" + addr[0] + "> " + message
+                print(message_to_send)
+                broadcast(message_to_send, conn)
+            else:
+                remove(conn)
+        except:
+            continue
+
+def broadcast(message, connection):
+    for client in list_of_clients:
+        if client != connection:
+            try:
+                client.send(bytes(message, encoding='utf8'))
+            except:
+                client.close()
+                remove(client)
+
+def remove(connection):
+    if connection in list_of_clients:
+        list_of_clients.remove(connection)
+
+def server_thread(server):
+    while True:
+        conn, addr = server.accept()
+        list_of_clients.append(conn)
+        print (addr[0] + " connected")
+        start_new_thread(clientthread, (conn, addr))
+
 if __name__ == "__main__":
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    addr = "127.0.0.1"
+    port = 5000
+    server.bind((addr, port))
+    #listens for 100 active connections.
+    server.listen(100)
+    start_new_thread(server_thread, (server,))
+
     demo2(render_RHD=True, offset=3)
