@@ -117,6 +117,10 @@ def update_scene(vis, img_index):
     pcd.points = _pcd.points # lol hopefully this works?
     vis.update_geometry(pcd)
 
+    # reposition the camera
+    vc = vis.get_view_control()
+    vc.set_lookat( train_image_y[0] )
+
 def clientthread(conn, addr, vis_lock): 
     global vis
     conn.send(b"Please enter commands!")
