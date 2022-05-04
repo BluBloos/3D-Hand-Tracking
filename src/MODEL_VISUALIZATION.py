@@ -16,55 +16,11 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 DEBUG = True
 
-###########################################################################################
-GRAYSCALE = False
-IMAGE_SIZE = 224
-BATCH_SIZE = 32
-import imageio
-import cv2 # opencv, for image resizing.
-def rgb2gray(rgb):
-    return np.expand_dims(np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140]), axis=2)
-def resize(img, size):
-    return cv2.resize(img, dsize=(size, size), interpolation=cv2.INTER_CUBIC)
-def download_image(path):
-  image = imageio.imread(path)
-  _image = image.astype('float32')
-  if GRAYSCALE:
-      _image = rgb2gray(_image / 255)
-  else:
-      _image = _image / 255
-  _image = resize(_image, IMAGE_SIZE)
-  return _image
-
-Y_TRAIN_COUNT = 35
-y_train = np.zeros( (Y_TRAIN_COUNT, 21, 3) )
-k_train = np.zeros( (Y_TRAIN_COUNT, 3, 3) )
 anno_train_path = '../RHD_small/training/anno_training.pickle'
+anno_eval_path = '../RHD_small/evaluation/anno_evaluation.pickle'
 
-# Remember, this is a dense load.
-def load_anno(path, arr):
-  anno_all = []
-  count = 0
-  with open(path, 'rb') as f:
-    anno_all = pickle.load(f)
-
-  for key, value in anno_all.items():
-    if(count >= Y_TRAIN_COUNT):
-      break
-    kp_visible = (value['uv_vis'][:, 2] == 1)
-    matrixK = value['K']
-    k_train[count, :, :] = matrixK
-    case1 = np.sum(kp_visible[0:21])
-    case2 = np.sum(kp_visible[21:])
-    if(case1 == 0):
-      arr[count, :, :]= value['xyz'][21:42]
-    else:
-      arr[count, :, :]= value['xyz'][:21]
-    count+=1
-###########################################################################################
-    
-
-
+from anno_load import load_anno_all
+from anno_load import y_train
 
 # given an open3D visualizer, we want to setup the scene.
 def update_scene(vis, img_index):
@@ -215,9 +171,7 @@ globalRunning = True
 
 if __name__ == "__main__":
 
-    # TODO(Noah): Modularize this and make this a function that can be called from anywhere in
-    # the codebase.
-    load_anno(anno_train_path, y_train)
+    load_anno_all(anno_train_path, anno_eval_path)
     if DEBUG:
         enablePrint()
     else:
