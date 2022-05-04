@@ -16,14 +16,27 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 DEBUG = True
 
+########################################### MODEL/ANNOT/DATA LOADING ###########################################
 anno_train_path = '../RHD_small/training/anno_training.pickle'
 anno_eval_path = '../RHD_small/evaluation/anno_evaluation.pickle'
-
 from anno_load import load_anno_all
 from anno_load import y_train
+from anno_load import y_test
+from data_load import IMAGE_SIZE
+from data_load import IMAGE_CHANNELS
+BATCH_SIZE = 32
+MANO_DIR = os.path.join("..", "mano_v1_2")
+from mobilehand import MAKE_MOBILE_HAND
+model = MAKE_MOBILE_HAND(IMAGE_SIZE, IMAGE_CHANNELS, BATCH_SIZE, MANO_DIR)
+gcs_path = '../SH_RHD'
+train_list = os.listdir(os.path.join(gcs_path, "training/color"))
+eval_list = os.listdir(os.path.join(gcs_path, "evaluation/color"))
+train_list.sort()
+eval_list.sort()
+########################################### MODEL/ANNOT/DATA LOADING ###########################################
 
 # given an open3D visualizer, we want to setup the scene.
-def update_scene(vis, img_index):
+def update_scene(vis, train_image_y):
     
     global line_set
     global line_set_spheres
@@ -31,17 +44,11 @@ def update_scene(vis, img_index):
     global mano_line_set
     global pcd
 
-    gcs_path = '../SH_RHD'
-    train_list = os.listdir(os.path.join(gcs_path, "training/color"))
-    train_list.sort()    
-    y_index = img_index
-    train_image_y = y_train[y_index] # [21, 3]
     # k_y = k_train[y_index]
     # k_y_batched = np.repeat(np.expand_dims(k_y, axis=0), 21, axis=0 )
     # Put the hand in the center (but only subtract in the xy dimensions). Keep the depth.
     train_image_y -= np.array([train_image_y[0][0], train_image_y[0][1], 0.0], dtype=np.float32)
-    mano_dir = os.path.join("..", "mano_v1_2")
-    mpi_model = MANO_Model(mano_dir)    
+    mpi_model = MANO_Model(MANO_DIR)    
 
     # build the lines for keypoint annotations
     lines = [ ]
@@ -134,14 +141,17 @@ def clientthread(conn, addr, vis_lock):
                     # load command, we want to load a new image for inference
                     if message_str[1] == "t":
                         # want to load from the training set.
-                        t_img = int(message_str[2:])
-                        print(cstr("loading training image"), t_img)
+                        t_index = int(message_str[2:])
+                        print(cstr("loading training image"), t_index)
+                        t_img = y_train[t_index]
                         vis_lock.acquire()
                         update_scene(vis, t_img)
                         vis_lock.release()
                     elif message_str[1] == "e":
                         # want to load from the evaluation set.
-                        e_img = int(message_str[3:])
+                        e_index = int(message_str[2:])
+                        print(cstr("loading evaluation image"), e_index)
+                        e_img = y_test[e_index]
                         vis_lock.acquire()
                         update_scene(vis, e_img)
                         vis_lock.release()
