@@ -52,8 +52,8 @@ def LOSS( beta, pose, L, U, cam_R, depth, scale, pred, gt ):
   #  LOSS_2D(cam_R, depth, scale, pred, gt) + LOSS_3D(cam_R, depth, scale, pred, gt) + LOSS_REG(beta, pose, L, U) / 50
   # )
 
-def distance(arr1,arr2):
-  diff = tf.math.subtract(arr1,arr2)
-  distance = tf.norm(diff,axis = 2)
+def distance(arr1, arr2):
+  diff = tf.math.subtract(arr1, arr2)
+  distance = tf.norm(diff, axis = 2)
   distance = tf.squeeze(distance)
   return distance

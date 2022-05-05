@@ -55,7 +55,7 @@ def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
   
   cam_R = tf.slice(reg_output, tf.constant([ 0, 55 ]), tf.constant([ batch_size, 3 ]))
 
-  full_pose = tf.concat( [ tf.repeat(tf.constant([[0.0,0.0,0.0]]), repeats=32, axis=0), pose], axis=1 )
+  full_pose = tf.concat( [ tf.repeat(tf.constant([[0.0,0.0,0.0]]), repeats=batch_size, axis=0), pose], axis=1 )
   # root_trans = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ batch_size, 3 ]))
   mano_mesh, mano_keypoints = mano_model(beta, full_pose)
 
