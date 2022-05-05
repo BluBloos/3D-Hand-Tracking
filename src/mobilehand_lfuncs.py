@@ -38,3 +38,9 @@ def LOSS_REG(beta, pose, L, U):
 # Master loss function
 def LOSS( beta, pose, L, U, pred, gt ):
   return 1e3 * LOSS_REG(beta, pose, L, U) + 1e2 * ( LOSS_2D(pred, gt) + LOSS_3D(pred, gt))
+
+def distance(arr1,arr2):
+  diff = tf.math.subtract(arr1,arr2)
+  distance = tf.norm(diff,axis = 2)
+  distance = tf.squeeze(distance)
+  return distance

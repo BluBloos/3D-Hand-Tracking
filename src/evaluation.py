@@ -1,3 +1,9 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mobilehand_lfuncs import LOSS_2D,LOSS_3D,LOSS_REG
+import os
+import tensorflow as tf
+from mobilehand_lfuncs import distance
 # model is a param for the callable tensorflow model (with loaded weights).
 # rhd_eval_dir is a directory that contains every single evaluation image.
 # download_image is a function that we can call (we pass it one param: fileName), and 
@@ -12,7 +18,48 @@ def time_model(model, rhd_eval_dir, download_image):
 # download_image is a function that we can call.
 # y_test is a numpy array with the 3D keypoints for every single image in the RHD evaluation set.
 #   the indices into this array are the names of the image files.
-def evaluate_model(model, rhd_eval_dir, download_image, y_test):
+def evaluate_model(model, rhd_eval_dir, download_image, y_test, gcs_path):
+    length = len(os.listdir(rhd_eval_dir))
+    thresholds = [tf.repeat(0.02,repeats = 21), tf.repeat(0.025,repeats = 21), tf.repeat(0.03,repeats = 21),
+     tf.repeat(0.035,repeats = 21), tf.repeat(0.04,repeats = 21),tf.repeat(0.045,repeats = 21),tf.repeat(0.05,repeats = 21)]
+    i = 0
+    percentage=np.zeros((len(thresholds),))
+    for threshold in thresholds:
+        test_count = 0
+        count = 0
+        
+        
+        for filename in os.listdir(rhd_eval_dir):
+            print(filename)
+            index = int(filename[0:5])
+            image = download_image(gcs_path,'evaluation',index)
+            
+
+            scale = np.sqrt(np.sum(
+                np.square(np.expand_dims(y_test[index][0] - y_test[index][8], axis = 0)), axis=1, keepdims=True)) / 0.1537328322252615
+            
+
+            z_depth = tf.constant(y_test[index][0])
+            z_depth = tf.expand_dims(z_depth, axis = 0)
+            image = tf.expand_dims(image, axis = 0)
+            beta, pose, mesh, keypoints = model((image, scale, z_depth))
+            error = distance(keypoints, y_test[index])
+            
+            valid_count = tf.math.count_nonzero(tf.math.less_equal(error,threshold))
+            count += valid_count.numpy()
+        
+        percentage[i] = 100 * count/(len(os.listdir(rhd_eval_dir)) *21)
+        i += 1
+    thresholds = tf.stack(thresholds)
+    thresholds = thresholds[:,0] * 1000
+    print(thresholds)
+    pck_graph = plt.axes()
+    pck_graph.grid()
+    pck_graph.plot(thresholds,percentage, label = 'Our model')
+    plt.title('RHD dataset')
+    plt.show()
+    
+
     pass
 
 # checkpoint_dir is a directory that contains the model checkpoints to iterate over.
