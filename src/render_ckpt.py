@@ -44,28 +44,16 @@ def send_email(image_file):
 
 # ckpt_index is an index for the current checkpoint that the model param is loaded
 # with weights.
-def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, camR_override=None):
+def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot):
 
     annot_2D, annot_3D, annot_K = annot
 
-    scale = np.sqrt(np.sum(np.square(annot_3D[0] - annot_3D[8]), axis=0, keepdims=True)) / 0.1537328322252615 
-    scale = np.repeat(np.expand_dims(scale, axis=0), repeats=32, axis=0)
-    z_depth = tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
-    # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.
-    _beta, _pose, T_posed, _keypoints3D, cam_R = model(
+    # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.   
+    _beta, _pose, T_posed, _keypoints3D, scale = model(
         np.repeat(np.expand_dims(eval_image, 0), 32, axis=0))
 
-    if camR_override != None:
-        cam_R = tf.repeat(camR_override, repeats=32, axis=0)
-
-    # print(cstr("T_posed"), T_posed)
-    # print(cstr("keypoints3D"), keypoints3D)
-    # print(cstr("camR"), cam_R)
-    T_posed = camera_extrinsic(cam_R, z_depth, scale, T_posed)
-    keypoints3D = camera_extrinsic(cam_R, z_depth, scale, _keypoints3D)
-    # print("after!")
-    # print(cstr("T_posed"), T_posed)
-    # print(cstr("keypoints3D"), keypoints3D)
+    T_posed = camera_extrinsic(scale, T_posed)
+    keypoints3D = camera_extrinsic(scale, _keypoints3D)
 
     render = rendering.OffscreenRenderer(1080, 1080)
     
@@ -176,9 +164,9 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot, cam
     # print(cstr("Sent email of"), img_filepath)
 
     # after all plotting, we print the loss for this specific plot!
-    loss2d = LOSS_2D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
-    loss3d = LOSS_3D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
-    loss_reg = LOSS_REG(_beta, _pose, mpi_model.L, mpi_model.U)
-    print(cstr("loss2d"), loss2d)
-    print(cstr("loss3d"), loss3d)
-    print(cstr("loss_reg"), loss_reg)
+    # loss2d = LOSS_2D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
+    # loss3d = LOSS_3D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
+    # loss_reg = LOSS_REG(_beta, _pose, mpi_model.L, mpi_model.U)
+    # print(cstr("loss2d"), loss2d)
+    # print(cstr("loss3d"), loss3d)
+    # print(cstr("loss_reg"), loss_reg)

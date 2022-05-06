@@ -21,7 +21,7 @@ def time_model(model, rhd_eval_dir, download_image):
 # download_image is a function that we can call.
 # y_test is a numpy array with the 3D keypoints for every single image in the RHD evaluation set.
 #   the indices into this array are the names of the image files.
-def evaluate_model(model, rhd_eval_dir, download_image, y_test, gcs_path):
+def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
     length = len(os.listdir(rhd_eval_dir))
     thresholds = [
         tf.repeat(0.02,repeats = 21), tf.repeat(0.025,repeats = 21), tf.repeat(0.03,repeats = 21),
@@ -39,16 +39,11 @@ def evaluate_model(model, rhd_eval_dir, download_image, y_test, gcs_path):
             print(filename)
             index = int(filename[0:5])
             annot_3D = y_test[index]
-            image = download_image(gcs_path, 'evaluation', index)
-            
-            scale = np.sqrt(np.sum(np.square(np.expand_dims(annot_3D[0] - annot_3D[8], axis = 0)), axis=1, \
-                keepdims=True)) / 0.1537328322252615
-            z_depth = tf.constant(annot_3D[0])
-            z_depth = tf.expand_dims(z_depth, axis = 0)
+            image = download_image(gcs_path, set, index)
             image = tf.expand_dims(image, axis = 0)
 
-            beta, pose, mesh, keypoints, cam_R = model(image)
-            keypoints = camera_extrinsic(cam_R, z_depth, scale, keypoints)
+            beta, pose, mesh, keypoints, scale = model(image)
+            keypoints = camera_extrinsic(scale, keypoints)
             error = distance(keypoints, annot_3D)
             
             valid_count = tf.math.count_nonzero(tf.math.less_equal(error, threshold))

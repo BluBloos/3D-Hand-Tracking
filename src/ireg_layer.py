@@ -5,7 +5,7 @@ import tensorflow as tf
 # TODO: Make it so that we do not have to pass in batch_size like this.
 def MAKE_REGRESSION_MODULE(batch_size):
   
-  MODEL_OUPUTS = 55 + 3 # +3 for the camera rot matrix param (3 = angle axis vector). 
+  MODEL_OUPUTS = 58 + 1 # + 1 for the camera scaling (applied prior to projection).
   DROP_PROB = 0.4
   
   inputs = tf.keras.layers.Input(shape=[576,])

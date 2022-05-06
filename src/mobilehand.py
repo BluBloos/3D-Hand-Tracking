@@ -22,25 +22,13 @@ def ortho_camera(points):
     ], dtype=tf.float32)
   return tf.matmul(points, intrinsic)
 
-def _camera_extrinsic_post_rot(depth, scale, points):
-  scaling_factor = scale * tf.constant((0.154 / 0.0906426), dtype=tf.float32)
-  points *= tf.expand_dims(scaling_factor, axis=1) # scale points
-  root_trans = tf.expand_dims(depth, axis=1)
-  points += root_trans # apply root translation to points
-  return points
-
 # take 3D points and apply the extrinsic camera transform.
-def camera_extrinsic(cam_R, depth, scale, points):
-  # We make a rodrigues matrix from cam_R angle params.
-  rot_mat = tf.reshape(rodrigues(cam_R,),(-1, 3, 3))
-  points = tf.matmul(points, rot_mat) # rotate points
-  points = _camera_extrinsic_post_rot(depth, scale, points)
+def camera_extrinsic(scale, points):
+  points *= scale
   return points
 
 def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
   inputs = tf.keras.layers.Input(shape=[image_size, image_size, image_channels])
-  #scale = tf.keras.layers.Input(shape=[1])
-  #z_depth = tf.keras.layers.Input(shape=[3])
 
   mobile_net = MAKE_MOBILE_NET(image_size, image_channels)
   print("mobile_net.trainable_variables", mobile_net.trainable_variables)
@@ -51,14 +39,11 @@ def MAKE_MOBILE_HAND(image_size, image_channels, batch_size, mano_dir):
   reg_output = reg_module(m_output)
 
   beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.constant([ batch_size, 10 ]))
-  pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ batch_size, 45 ]))
-  
-  cam_R = tf.slice(reg_output, tf.constant([ 0, 55 ]), tf.constant([ batch_size, 3 ]))
+  pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ batch_size, 48 ]))
+  scale = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ batch_size, 1 ]))  
+  scale = tf.expand_dims(scale, axis=1) # new shape is [bs, 1, 1]
 
-  full_pose = tf.concat( [ tf.repeat(tf.constant([[0.0,0.0,0.0]]), repeats=batch_size, axis=0), pose], axis=1 )
-  # root_trans = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ batch_size, 3 ]))
-  mano_mesh, mano_keypoints = mano_model(beta, full_pose)
-
-  return tf.keras.Model(inputs=[inputs], outputs=[beta, full_pose, mano_mesh, mano_keypoints, cam_R])
+  mano_mesh, mano_keypoints = mano_model(beta, pose)
+  return tf.keras.Model(inputs=[inputs], outputs=[beta, pose, mano_mesh, mano_keypoints, scale])
 
 

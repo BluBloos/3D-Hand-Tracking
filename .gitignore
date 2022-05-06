@@ -9,5 +9,6 @@ mano_v1_2/
 google_credentials.json
 src/*.png
 checkpoints/
+checkpoints_old/
 RHD_published_v2
 env/

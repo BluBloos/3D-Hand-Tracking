@@ -1,54 +1,119 @@
 '''
 
-Observations:
+Things done:
+___________________________________
+
+- Revist iterative regression module. as we saw odd things in the pytorch codebase.
+    - We found that we are not supposed to have reLu activation at the output -> fixed.
+    - Changed back to three iters.
+
+- Default back to same hyperparams as seen in MobileHand (for loss terms).
+    - Of course this is with our own addition of the division by 2.
+
+- First test results of gcloud training.
+
+- Decreasing the drop prob to about 0.4 -> decrease regularization to prevent underfitting.
+
+
+Next steps that we believe are going to create a good impact for us.
+___________________________________
+
+
+- Put rotation of hand root back into MANO model. 
+- Use intermediate supervision of camera parameters (scale).
+    - And remove the z_depth from RHD images (because this is like, no!)
+
+- Add decay to the learning rate when the loss plateaus via a callback function.
+    - Can do via a scheduler function -> although I am not sure about precisely what the step variable is.
+    https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay
+
+Previous Observations:
 ___________________________________
 
     -> Mode collapse on model pose.
     -> Rotations for z-axis appear sane.
 
 
-Things we might want to do:
+Notes:
 ___________________________________
 
-- Write a script for easily download checkpoints from the Google bucket.
+- What is L2 loss? L2 = sum: (y - y_pred)^2.
 
-- Revist the iterative regression module as we saw odd things in the pytorch codebase.
-    - Did the revisit -> figured out that we are not supposed to have activation at the output
-    of our iterative regressor -> I feel like this was HUGE.
-    - Also changed back to three iters.
-    - Also seeing that in the MobileHand Github -> when in non-evaluation mode, they output all three params???
+- What is bias and variance?
+    - Bias is the average error between the estimation and the ground truth (miss the target, accuracy).
+    - Variance is like, how difference are the estimates?? (precision).
+
+
+Underfitting Research:
+___________________________________
+https://www.ibm.com/cloud/learn/underfitting#toc-how-to-avo-OLugiNSf
+
+- Generally, underfitting means that you model cannot estimate for new data OR training data.
+    - Characterized by high bias and low variance.
+    - Reasons?
+        - Lack of complexity.
+        - Undertraining.
+
+        (My own ideas):
+        - Loss functions not proper.
+        - Large domain gap.
+
+How to fix:
+- Decrease regularization.
+- Train more.
+- Add more features:
+    - Ex: You might add a hidden layer -> more complexity.
+
+
+As seen in Zhang et al.
+___________________________________
+
+- Consider decaying the learning rate when the loss plateaus -> we can use a callback function.
+- Consider decreasing the drop prob to about 0.4 -> decrease regularization to prevent underfitting.
+- They do centering of the hand, but then perform data augmentation during training.
+- Add a prior layer before iterative regression for estimation of 2D heatmaps.
+- Iterative regression module is the same, but MobileNetV3 replaced with from-scratch encoder.
+    - Important difference is that the input of this layer is gon be the heatmaps!
+- Add a differentiable render for supervision of segmentation mask -> Inverse Graphics technique.
+- Put rotation of hand root back into MANO model. 
+- Use intermediate supervision of camera parameters + 2D heatmap layers:
+    - To ensure the deep layers are giving good output.
+
+Geometric constraints:
+- Tip to palm for any finger (except thumb) are in the same plane.
+
+
+
+More Brainstorm:
+___________________________________
+
+- Generally skeptical of 2D / 3D loss.
+    - We give the scale + z_depth to the model during 2D_LOSS function.
+        -> this does not seem correct as we are providing something in the loss
+        that was not a direct output of the model. This seems like we are breaking
+        a golden rule. 
+    - The 3D loss is depeneing on cam_R.
+
+
+- Want to further review the iterative regression module AS:
+    - Seeing that in the MobileHand Github -> when in non-evaluation mode, they output all three params???
         - does this have implications in the way we compute the loss for this layer??
-        -> for now we will put this aside.
+    
+- We could investigate deeply into MobileNetV3-Small
+    - Explore unfreezing MobileNetV3-Small, but still loading pre-trained weights.
+    - Consider visualizing the output features of the MobileNetV3 encoder (but can they even be visualized).
+    - Confirm that we have the right cutoff point in MobileNetV3
+       - Paper says, "Used up to average pooling layer to output 576 feature vectors."
 
-- Something we could try is to simply put the rotation of the root back into the model.
-Nothing odd is happening now with the 3D loss. extrinsic camera simply applies translation and rotation.
-    -> also a great question is why we don't just take the RHD images and give them a depth of zero.
-    -> because we provide this info to our model anyways -> so just be consistent.
 
-- We could explore unfreezing but still loading a pre-trained MobileNextV3. So weights get modified.
-    -> Hasson et al is saying that they froze the batch norm layers?
 
-- Considering using the same loss coefficients as seen in Mobilehand.
-    - Will need to of course consider that we use the full 45 MANO pose parameters.
+Things that exist, but prob will not help (because the prob is underfitting):
+___________________________________
 
-- Generally skeptical of that our 3D keypoint loss depends on the cam_R being estimated proper :(
-    - All we would need to do is the following 
-        -> generate our own ground truth cam_R.
-        -> use this ground truth to apply inverse camera_extrinsic to 
-        GT 3D keypoints for comparison with output from MANO.
-            -> the the 3D keypoint output is prior to translation, scaling, and rotation.
-            -> because we want to estimate a prior.
-
-- Unfreeze MobileNetV3
-- Maybe read online about underfitting. Do our research and see if we can learn something fundamental 
-    or new about machine learning.
-- Confirm that we have the right cutoff point in MobileNetV3
-    - Paper says, "Used up to average pooling layer to output 576 feature vectors."
-- Think about weight initialization.
-- Think about the way we train the model
-    - Learning rate
-    - Training on STB.
-- Consider visualizing the output features of the MobileNetV3 encoder.
+    - We could generally think about weight initialization.
+    - Think about the way we train the model
+        - Learning rate
+        - Training on STB.
 
 
 '''

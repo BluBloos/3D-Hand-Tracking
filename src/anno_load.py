@@ -58,7 +58,7 @@ def load_anno(path, y, k, y2):
 
     # Adjust the 3D keypoints to be at the center of the image.
     annot_3D = y[count, :, :]
-    y[count, :, :] -= np.array([annot_3D[0][0], annot_3D[0][1], 0.0], dtype=np.float32)
+    y[count, :, :] -= annot_3D[0]
 
     k[count, :, :] = value['K']
     count += 1

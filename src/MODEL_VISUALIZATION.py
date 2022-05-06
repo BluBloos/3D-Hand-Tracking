@@ -46,10 +46,6 @@ def update_scene(vis, img_in, annot_3D):
     global pcd
 
     try:
-        # k_y = k_train[y_index]
-        # k_y_batched = np.repeat(np.expand_dims(k_y, axis=0), 21, axis=0 )
-        # Put the hand in the center (but only subtract in the xy dimensions). Keep the depth.
-        annot_3D -= np.array([annot_3D[0][0], annot_3D[0][1], 0.0], dtype=np.float32)
         mpi_model = MANO_Model(MANO_DIR) 
 
         # build the lines for keypoint annotations
@@ -77,15 +73,12 @@ def update_scene(vis, img_in, annot_3D):
             msphere.translate(keypoint)
             vis.update_geometry(msphere)     
         
-        scale = np.sqrt(np.sum(np.square(annot_3D[0] - annot_3D[8]), axis=0, keepdims=True)) / 0.1537328322252615 
-        scale = np.repeat(np.expand_dims(scale, axis=0), repeats=32, axis=0)
-        z_depth = tf.repeat(tf.constant([[0, 0, annot_3D[0][2]]]), repeats=32, axis=0)
         # Step 1 is to use the eval_image in a forward pass w/ the model to generate a ckpt_image.
-        _beta, _pose, T_posed, _keypoints3D, cam_R = model(
+        _beta, _pose, T_posed, _keypoints3D, scale = model(
             np.repeat(np.expand_dims(img_in, 0), 32, axis=0))
         
-        T_posed = camera_extrinsic(cam_R, z_depth, scale, T_posed)
-        keypoints3D = camera_extrinsic(cam_R, z_depth, scale, _keypoints3D)
+        T_posed = camera_extrinsic(scale, T_posed)
+        keypoints3D = camera_extrinsic(scale, _keypoints3D)
 
         # need to consider just 1 of the 32 outputs (because things have a batch size)
         T_posed = T_posed[0]

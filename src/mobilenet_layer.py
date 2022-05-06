@@ -26,8 +26,8 @@ def MAKE_MOBILE_NET(image_size, image_channels):
 
   # NOTE(Noah): For the purposes of transfer learning, we need to explicitly ensure
   # that the weights do not change!
-  model.trainable = False
-  out = model(inputs, training=False)
+  #model.trainable = False
+  out = model(inputs)
 
   return tf.keras.Model(inputs=inputs, outputs=out)
 
