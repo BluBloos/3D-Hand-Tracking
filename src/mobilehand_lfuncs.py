@@ -46,8 +46,8 @@ def LOSS_REG(beta, pose, L, U):
 
 # Master loss function
 def LOSS( beta, pose, L, U, cam_R, depth, scale, pred, gt ):
-  return 1e0 * LOSS_REG(beta, pose, L, U) + 1e1 * ( LOSS_2D(cam_R, depth, scale, pred, gt)) + \
-    1e1 * LOSS_3D(cam_R, depth, scale, pred, gt)
+  return (1e3 / 2) * LOSS_REG(beta, pose, L, U) + 1e2 * LOSS_2D(cam_R, depth, scale, pred, gt) + \
+    1e2 * LOSS_3D(cam_R, depth, scale, pred, gt)
   # return 1e2 * (
   #  LOSS_2D(cam_R, depth, scale, pred, gt) + LOSS_3D(cam_R, depth, scale, pred, gt) + LOSS_REG(beta, pose, L, U) / 50
   # )
