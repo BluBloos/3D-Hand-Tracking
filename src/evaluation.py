@@ -5,7 +5,7 @@ import os
 import tensorflow as tf
 from mobilehand import camera_extrinsic
 from mobilehand_lfuncs import distance
-
+import time
 
 # model is a param for the callable tensorflow model (with loaded weights).
 # rhd_eval_dir is a directory that contains every single evaluation image.
@@ -40,6 +40,8 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
     i = 0
     percentage = np.zeros((len(thresholds),))
     
+    timings = []
+
     for threshold in thresholds:
 
         count = 0        
@@ -51,7 +53,11 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
             image = download_image(gcs_path, set, index)
             image = tf.expand_dims(image, axis = 0)
 
+            time_start = time.time()
             beta, pose, mesh, keypoints, scale = model(image)
+            time_end = time.time()
+            timings.append(time_end - time_start)
+
             keypoints = camera_extrinsic(scale, keypoints)
             error = distance(keypoints, annot_3D)
             
@@ -63,8 +69,13 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
     
     thresholds = tf.stack(thresholds)
     thresholds = thresholds[:, 0] * 1000
+    
     print(thresholds)
     
+    # compute the average model inference time
+    inference_time = np.sum(np.array(timings)) / len(timings)
+    print("inference_time", inference_time)
+
     plt.figure(figsize=(10.0, 8.0))
     plt.grid()
 
