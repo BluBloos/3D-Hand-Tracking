@@ -1,3 +1,4 @@
+from tkinter import E
 import tensorflow as tf
 import numpy as np
 import pickle
@@ -44,6 +45,7 @@ def update_scene(vis, img_in, annot_3D):
     global mano_spheres
     global mano_line_set
     global pcd
+    global mesh
 
     try:
         mpi_model = MANO_Model(MANO_DIR) 
@@ -118,13 +120,24 @@ def update_scene(vis, img_in, annot_3D):
 
         # add the MANO mesh as well.
         T_posed_scaled = T_posed
-        mesh = o3d.geometry.TriangleMesh()
         mesh.triangles = o3d.utility.Vector3iVector(mpi_model.F.numpy())
         mesh.vertices = o3d.utility.Vector3dVector(T_posed_scaled.numpy()) 
-        mesh.compute_vertex_normals()
-        _pcd = mesh.sample_points_uniformly(number_of_points=1000)
-        pcd.points = _pcd.points # lol hopefully this works?
-        vis.update_geometry(pcd)
+
+        # filter mesh to make smooth
+        _mesh = mesh.filter_smooth_laplacian(number_of_iterations=2)
+        # apply subdivision to mimic smooth shading setting in Blender.
+        #_mesh = _mesh.subdivide_midpoint(number_of_iterations=1)
+        
+        mesh.triangles = _mesh.triangles
+        mesh.vertices = _mesh.vertices
+        mesh.compute_vertex_normals()    
+
+        if MESH_MODE:
+            vis.update_geometry(mesh)
+        else:
+            _pcd = mesh.sample_points_uniformly(number_of_points=1000)
+            pcd.points = _pcd.points # lol hopefully this works?
+            vis.update_geometry(pcd)
 
         # reposition the camera
         vc = vis.get_view_control()
@@ -135,6 +148,8 @@ def update_scene(vis, img_in, annot_3D):
 
 def clientthread(conn, addr, vis_lock): 
     global vis
+    global MESH_MODE
+    global PCD_MODE
     conn.send(b"Please enter commands!")
     while True:
         try:
@@ -169,6 +184,26 @@ def clientthread(conn, addr, vis_lock):
                         file_path = os.path.join(checkpoint_path, "cp-{:04d}.ckpt".format(ckpt))
                         model.load_weights(file_path)
                         print(cstr("loaded model weights:"), ckpt)
+                elif message_str[0] == "m":
+                    # user trying to set the mode
+                    if message_str[1] == "m":
+                        # set to mesh mode.
+                        if PCD_MODE:
+                            vis_lock.acquire()
+                            vis.remove_geometry(pcd)
+                            vis.add_geometry(mesh)
+                            MESH_MODE = True 
+                            PCD_MODE = False
+                            vis_lock.release()
+                    elif message_str[1] == "p":
+                        # set to point_cloud mode.
+                        if MESH_MODE:
+                            vis_lock.acquire()
+                            vis.remove_gemetry(mesh)
+                            vis.add_geometry(pcd)
+                            MESH_MODE = False 
+                            PCD_MODE = True
+                            vis_lock.release()
             else:
                 remove(conn)
         except:
@@ -189,9 +224,12 @@ def server_thread(server, vis_lock):
 list_of_clients = []
 vis = None
 pcd = o3d.geometry.PointCloud()
+mesh = o3d.geometry.TriangleMesh()
 line_set = o3d.geometry.LineSet()
 mano_line_set = o3d.geometry.LineSet()
 SPHERE_RADIUS = 0.005
+MESH_MODE = True
+PCD_MODE = False
 line_set_spheres = [ o3d.geometry.TriangleMesh.create_sphere(SPHERE_RADIUS) for i in range(21) ]
 mano_spheres = [ o3d.geometry.TriangleMesh.create_sphere(SPHERE_RADIUS) for i in range(21) ]
 vis_lock = allocate_lock()
@@ -213,7 +251,7 @@ if __name__ == "__main__":
     vis.add_geometry(mesh_frame)
     vis.add_geometry(line_set)
     vis.add_geometry(mano_line_set)
-    vis.add_geometry(pcd)
+    vis.add_geometry(mesh)
     for i in range(21):
         vis.add_geometry(line_set_spheres[i])
         vis.add_geometry(mano_spheres[i])
