@@ -27,12 +27,11 @@ class MobileHand(Model):
     self.image_channels = image_channels
     self.mano_dir = mano_dir
     self.mobile_net = MobileNetV3Small(self.image_size, self.image_channels)
-    self.mobile_net.freeze()
     self.reg_module = IterativeRegression(59, 0.4, 3)
     self.mano_model = MANO_Model(self.mano_dir)
   def call(self, x, training=False):
     bs = x.shape[0]
-    m_output = self.mobile_net(x, training)
+    m_output = self.mobile_net(x)
     reg_output = self.reg_module(m_output, training)
     beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.constant([ bs, 10 ]))
     pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ bs, 48 ]))
@@ -90,7 +89,7 @@ def LOSS_REG(beta, pose, L, U):
 def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
   gt_prime = gt / gt_scale # Inverse scale transform.
   return LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
-    LOSS_CAM(scale, gt_scale) + LOSS_REG(beta, pose, L, U)
+    LOSS_CAM(scale, gt_scale) # + LOSS_REG(beta, pose, L, U)
 
 def distance(arr1, arr2):
   diff = tf.math.subtract(arr1, arr2)

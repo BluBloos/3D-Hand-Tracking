@@ -23,6 +23,9 @@ class MobileNetV3Small(Model):
   def unfreeze(self):
     self.mobileNet.trainable = True
 
-  def call(self, x, training=False):
-    y = self.mobileNet(x, training)
+  def call(self, x):
+    # NOTE(Noah): Since we are doing fine-tuning / transfer learning, must always keep in inference
+    # mode to ensure mean and variance of BatchNorm layers are static.
+    # See -> https://www.tensorflow.org/guide/keras/transfer_learning
+    y = self.mobileNet(x, training=False)
     return self.f(y)
