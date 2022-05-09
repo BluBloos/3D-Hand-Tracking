@@ -89,7 +89,7 @@ def LOSS_REG(beta, pose, L, U):
 def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
   gt_prime = gt / gt_scale # Inverse scale transform.
   return LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
-    LOSS_CAM(scale, gt_scale) # + LOSS_REG(beta, pose, L, U)
+    LOSS_CAM(scale, gt_scale) + LOSS_REG(beta, pose, L, U)
 
 def distance(arr1, arr2):
   diff = tf.math.subtract(arr1, arr2)

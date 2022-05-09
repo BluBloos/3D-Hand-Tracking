@@ -17,6 +17,7 @@ def get_auc(x, y):
         result += delta_x * y[i] # rectangle @ bottom.
     return round(result, 3)    
 
+# TODO(Noah): Modify to account for new download_image.
 # evaluates the model on a specific set from the RHD dataset.
 def evaluate_model(model, train_list, set):
     thresholds = [
