@@ -1,18 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mobilehand_lfuncs import LOSS_2D, LOSS_3D, LOSS_REG
 import os
 import tensorflow as tf
-from mobilehand import camera_extrinsic
-from mobilehand_lfuncs import distance
 import time
 
-# model is a param for the callable tensorflow model (with loaded weights).
-# rhd_eval_dir is a directory that contains every single evaluation image.
-# download_image is a function that we can call (we pass it one param: fileName), and 
-#   it will return to us a numpy array for the image.
-def time_model(model, rhd_eval_dir, download_image):
-    pass
+from mobilehand import camera_extrinsic, distance
+from qmind_lib import download_image, y_train, y_test
 
 # x and y should be standard lists!
 def get_auc(x, y):
@@ -24,14 +17,8 @@ def get_auc(x, y):
         result += delta_x * y[i] # rectangle @ bottom.
     return round(result, 3)    
 
-# model is a param for the callable tensorflow model (with loaded weights).
-# rhd_eval_dir is a directory name for a directory 
-#   that contains every single evaluation image (of just single hands).
-# download_image is a function that we can call.
-# y_test is a numpy array with the 3D keypoints for every single image in the RHD evaluation set.
-#   the indices into this array are the names of the image files.
-def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
-    length = len(os.listdir(rhd_eval_dir))
+# evaluates the model on a specific set from the RHD dataset.
+def evaluate_model(model, train_list, set):
     thresholds = [
         tf.repeat(0.02,repeats = 21), tf.repeat(0.025,repeats = 21), tf.repeat(0.03,repeats = 21),
         tf.repeat(0.035,repeats = 21), tf.repeat(0.04,repeats = 21), tf.repeat(0.045,repeats = 21),
@@ -39,18 +26,20 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
     ]
     i = 0
     percentage = np.zeros((len(thresholds),))
-    
     timings = []
-
     for threshold in thresholds:
-
-        count = 0        
-        for filename in os.listdir(rhd_eval_dir):
-            
+        count = 0                
+        for filename in train_list:
+            if filename.startswith('.'):
+                continue
             print(filename)
             index = int(filename[0:5])
-            annot_3D = y_test[index]
-            image = download_image(gcs_path, set, index)
+
+            annot_3D = y_train[index]
+            if set == "evaluation":
+                annot_3D = y_test[index]
+
+            image = download_image(set, index)
             image = tf.expand_dims(image, axis = 0)
 
             time_start = time.time()
@@ -64,13 +53,11 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
             valid_count = tf.math.count_nonzero(tf.math.less_equal(error, threshold))
             count += valid_count.numpy()
         
-        percentage[i] = count / (len(os.listdir(rhd_eval_dir)) * 21)
+        percentage[i] = count / (len(train_list) * 21)
         i += 1
     
     thresholds = tf.stack(thresholds)
     thresholds = thresholds[:, 0] * 1000
-    
-    print(thresholds)
     
     # compute the average model inference time
     inference_time = np.sum(np.array(timings)) / len(timings)
@@ -101,20 +88,5 @@ def evaluate_model(model, rhd_eval_dir, set, download_image, y_test, gcs_path):
     plt.title('RHD Dataset 3D PCK Curve')
     plt.xlabel('Error Thresholds (mm)')
     plt.ylabel('Percentage of Correct Keypoints')
-
     plt.legend(loc="lower right")
-
     plt.show()
-    
-
-# checkpoint_dir is a directory that contains the model checkpoints to iterate over.
-# model is a param for the callable tensorflow model (with loaded weights).
-# rhd_eval_dir is a directory that contains every single evaluation image (of just single hands).
-# download_image is a function that we can call (we pass it one param: fileName), and 
-#   it will return to us a numpy array for the image.
-# y_test is a numpy array with the 3D keypoints for every single image in the RHD evaluation set.
-#   the indices into this array are the names of the image files.
-def generate_loss_graph(checkpoint_dir, model, rhd_eval_dir, download_image, y_test):
-    pass
-
-

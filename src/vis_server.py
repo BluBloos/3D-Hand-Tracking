@@ -1,38 +1,31 @@
 from tkinter import E
 import tensorflow as tf
 import numpy as np
-import pickle
 import time
-from mano_layer import MANO_Model
-from qmindcolors import cstr
 import sys, os
 import open3d as o3d
 import socket
 import sys
 from _thread import *
 
-def blockPrint():
-    sys.stdout = open(os.devnull, 'w')
-def enablePrint():
-    sys.stdout = sys.__stdout__
-DEBUG = True
-
 ########################################### MODEL/ANNOT/DATA LOADING ###########################################
-anno_train_path = '../RHD_small/training/anno_training.pickle'
-anno_eval_path = '../RHD_small/evaluation/anno_evaluation.pickle'
-from anno_load import load_anno_all
-from anno_load import y_train
-from anno_load import y_test
-from data_load import IMAGE_SIZE, download_image
-from data_load import IMAGE_CHANNELS
-from mobilehand import camera_extrinsic
+import qmind_lib as qmindlib
+rhd_dir = os.path.join("..", "SH_RHD")
+qmindlib.init(rhd_dir)
+cstr = qmindlib.cstr
+y_train = qmindlib.y_train
+y_test = qmindlib.y_test
 BATCH_SIZE = 32
+IMAGE_SIZE = 224 # TODO(Noah): make this have affect on download_image.
+GRAYSCALE = False
+IMAGE_CHANNELS = 1 if GRAYSCALE else 3
+from mobilehand import camera_extrinsic
 MANO_DIR = os.path.join("..", "mano_v1_2")
-from mobilehand import MAKE_MOBILE_HAND
-model = MAKE_MOBILE_HAND(IMAGE_SIZE, IMAGE_CHANNELS, BATCH_SIZE, MANO_DIR)
+from mobilehand import MobileHand
+model = MobileHand(IMAGE_SIZE, IMAGE_CHANNELS, MANO_DIR)
 gcs_path = '../SH_RHD'
-train_list = os.listdir(os.path.join(gcs_path, "training/color"))
-eval_list = os.listdir(os.path.join(gcs_path, "evaluation/color"))
+train_list = qmindlib.get_train_list()
+eval_list = qmindlib.get_eval_list()
 train_list.sort()
 eval_list.sort()
 ########################################### MODEL/ANNOT/DATA LOADING ###########################################
@@ -44,11 +37,11 @@ def update_scene(vis, img_in, annot_3D):
     global line_set_spheres
     global mano_spheres
     global mano_line_set
-    global pcd
     global mesh
+    global model
 
     try:
-        mpi_model = MANO_Model(MANO_DIR) 
+        mpi_model = model.mano_model
 
         # build the lines for keypoint annotations
         lines = [ ]
@@ -130,14 +123,8 @@ def update_scene(vis, img_in, annot_3D):
         
         mesh.triangles = _mesh.triangles
         mesh.vertices = _mesh.vertices
-        mesh.compute_vertex_normals()    
-
-        if MESH_MODE:
-            vis.update_geometry(mesh)
-        else:
-            _pcd = mesh.sample_points_uniformly(number_of_points=1000)
-            pcd.points = _pcd.points # lol hopefully this works?
-            vis.update_geometry(pcd)
+        mesh.compute_vertex_normals()
+        vis.update_geometry(mesh)
 
         # reposition the camera
         vc = vis.get_view_control()
@@ -148,8 +135,6 @@ def update_scene(vis, img_in, annot_3D):
 
 def clientthread(conn, addr, vis_lock): 
     global vis
-    global MESH_MODE
-    global PCD_MODE
     conn.send(b"Please enter commands!")
     while True:
         try:
@@ -164,7 +149,7 @@ def clientthread(conn, addr, vis_lock):
                         t_index = int(message_str[2:])
                         print(cstr("loading training image"), t_index)
                         annot = y_train[t_index]
-                        t_img = download_image(gcs_path, "training", t_index)
+                        t_img = qmindlib.download_image("training", t_index)
                         vis_lock.acquire()
                         update_scene(vis, t_img, annot)
                         vis_lock.release()
@@ -173,7 +158,7 @@ def clientthread(conn, addr, vis_lock):
                         e_index = int(message_str[2:])
                         print(cstr("loading evaluation image"), e_index)
                         annot = y_test[e_index]
-                        e_img = download_image(gcs_path, "evaluation", e_index)
+                        e_img = qmindlib.download_image("evaluation", e_index)
                         vis_lock.acquire()
                         update_scene(vis, e_img, annot)
                         vis_lock.release()
@@ -184,26 +169,6 @@ def clientthread(conn, addr, vis_lock):
                         file_path = os.path.join(checkpoint_path, "cp-{:04d}.ckpt".format(ckpt))
                         model.load_weights(file_path)
                         print(cstr("loaded model weights:"), ckpt)
-                elif message_str[0] == "m":
-                    # user trying to set the mode
-                    if message_str[1] == "m":
-                        # set to mesh mode.
-                        if PCD_MODE:
-                            vis_lock.acquire()
-                            vis.remove_geometry(pcd)
-                            vis.add_geometry(mesh)
-                            MESH_MODE = True 
-                            PCD_MODE = False
-                            vis_lock.release()
-                    elif message_str[1] == "p":
-                        # set to point_cloud mode.
-                        if MESH_MODE:
-                            vis_lock.acquire()
-                            vis.remove_gemetry(mesh)
-                            vis.add_geometry(pcd)
-                            MESH_MODE = False 
-                            PCD_MODE = True
-                            vis_lock.release()
             else:
                 remove(conn)
         except:
@@ -223,25 +188,16 @@ def server_thread(server, vis_lock):
 # global variables
 list_of_clients = []
 vis = None
-pcd = o3d.geometry.PointCloud()
 mesh = o3d.geometry.TriangleMesh()
 line_set = o3d.geometry.LineSet()
 mano_line_set = o3d.geometry.LineSet()
 SPHERE_RADIUS = 0.005
-MESH_MODE = True
-PCD_MODE = False
 line_set_spheres = [ o3d.geometry.TriangleMesh.create_sphere(SPHERE_RADIUS) for i in range(21) ]
 mano_spheres = [ o3d.geometry.TriangleMesh.create_sphere(SPHERE_RADIUS) for i in range(21) ]
 vis_lock = allocate_lock()
 globalRunning = True
 
 if __name__ == "__main__":
-
-    load_anno_all(anno_train_path, anno_eval_path)
-    if DEBUG:
-        enablePrint()
-    else:
-        blockPrint()
 
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
     vis = o3d.visualization.Visualizer()
@@ -255,6 +211,7 @@ if __name__ == "__main__":
     for i in range(21):
         vis.add_geometry(line_set_spheres[i])
         vis.add_geometry(mano_spheres[i])
+    vis.get_render_option().mesh_show_wireframe = True
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

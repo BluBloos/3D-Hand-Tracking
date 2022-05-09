@@ -5,12 +5,8 @@ import sys
 # new socket.
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-if len(sys.argv) != 3:
-	print ("Correct usage: script, IP address, port number")
-	exit()
-
-addr = str(sys.argv[1])
-port = int(sys.argv[2])
+addr = "127.0.0.1"
+port = 5000
 server.connect((addr, port))
 
 while True:

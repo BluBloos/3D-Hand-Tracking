@@ -1,46 +1,11 @@
-
-from timeit import repeat
 import open3d as o3d
 import open3d.visualization.rendering as rendering
-from mano_layer import MANO_Model
 import numpy as np
 import os
 import tensorflow as tf
-from qmindcolors import cstr
+from qmind_lib import cstr
 import matplotlib.pyplot as plt
 from mobilehand import camera_extrinsic
-
-from mobilehand_lfuncs import LOSS_2D
-from mobilehand_lfuncs import LOSS_3D
-from mobilehand_lfuncs import LOSS_REG
-
-# with reference to this post https://www.codeitbro.com/send-email-using-python/#step-1-8211connect-to-the-mail-server. 
-# Seems pretty bad tbh but it's gonna do the job??
-import smtplib
-import imghdr
-from email.message import EmailMessage
-
-Sender_Email = "acc.cnoah@gmail.com"
-Reciever_Email = "cnoah1705@gmail.com"
-Password = "htqkbbitakdonazr"
-
-def send_email(image_file):
-    newMessage = EmailMessage()                         
-    newMessage['Subject'] = "New Checkpoint" 
-    newMessage['From'] = Sender_Email                   
-    newMessage['To'] = Reciever_Email                   
-    newMessage.set_content('Image attached!') 
-
-    with open(image_file, 'rb') as f:
-        image_data = f.read()
-        image_type = imghdr.what(f.name)
-        image_name = f.name
-
-    newMessage.add_attachment(image_data, maintype='image', subtype=image_type, filename=image_name)
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login(Sender_Email, Password)              
-        smtp.send_message(newMessage)
 
 # ckpt_index is an index for the current checkpoint that the model param is loaded
 # with weights.
@@ -57,10 +22,7 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot):
 
     render = rendering.OffscreenRenderer(1080, 1080)
     
-    # TODO(Noah): Reloading MANO here is sort of redundant. We should expose the MANO params on the
-    # model or something like that.
-    mano_dir = os.path.join("..", "mano_v1_2")
-    mpi_model = MANO_Model(mano_dir)  
+    mpi_model = model.mano_model
 
     green = rendering.MaterialRecord()
     green.base_color = [0.0, 0.5, 0.0, 1.0]
@@ -154,19 +116,11 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot):
     fig = plt.figure(figsize=(15, 10))
     columns = 2
     rows = 1
-    fig.add_subplot(rows, columns, 1)
-    plt.imshow(eval_image / 255)
-    fig.add_subplot(rows, columns, 2)
-    plt.imshow(img1)
-    plt.savefig(img_filepath)
-    # fig.show()
-    # send_email(img_filepath)
-    # print(cstr("Sent email of"), img_filepath)
 
-    # after all plotting, we print the loss for this specific plot!
-    # loss2d = LOSS_2D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
-    # loss3d = LOSS_3D(cam_R, z_depth, scale, _keypoints3D, annot_3D)
-    # loss_reg = LOSS_REG(_beta, _pose, mpi_model.L, mpi_model.U)
-    # print(cstr("loss2d"), loss2d)
-    # print(cstr("loss3d"), loss3d)
-    # print(cstr("loss_reg"), loss_reg)
+    #print(eval_image)
+
+    fig.add_subplot(rows, columns, 1)
+    plt.imshow( eval_image.astype(np.uint8) )
+    fig.add_subplot(rows, columns, 2)
+    plt.imshow( np.array(img1).astype(np.uint8) )
+    plt.savefig(img_filepath)
