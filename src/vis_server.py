@@ -11,11 +11,10 @@ from _thread import *
 ########################################### MODEL/ANNOT/DATA LOADING ###########################################
 import qmind_lib as qmindlib
 rhd_dir = os.path.join("..", "SH_RHD")
-qmindlib.init(rhd_dir)
+qmindlib.init(rhd_dir, 1) # batch size of 1 but it prolly does not matter.
 cstr = qmindlib.cstr
 y_train = qmindlib.y_train
 y_test = qmindlib.y_test
-BATCH_SIZE = 32
 IMAGE_SIZE = 224 # TODO(Noah): make this have affect on download_image.
 GRAYSCALE = False
 IMAGE_CHANNELS = 1 if GRAYSCALE else 3
@@ -149,7 +148,7 @@ def clientthread(conn, addr, vis_lock):
                         t_index = int(message_str[2:])
                         print(cstr("loading training image"), t_index)
                         annot = y_train[t_index]
-                        t_img = qmindlib.download_image("training", t_index)
+                        t_img = qmindlib.download_image_legacy("training", t_index)
                         vis_lock.acquire()
                         update_scene(vis, t_img, annot)
                         vis_lock.release()
@@ -158,7 +157,7 @@ def clientthread(conn, addr, vis_lock):
                         e_index = int(message_str[2:])
                         print(cstr("loading evaluation image"), e_index)
                         annot = y_test[e_index]
-                        e_img = qmindlib.download_image("evaluation", e_index)
+                        e_img = qmindlib.download_image_legacy("evaluation", e_index)
                         vis_lock.acquire()
                         update_scene(vis, e_img, annot)
                         vis_lock.release()

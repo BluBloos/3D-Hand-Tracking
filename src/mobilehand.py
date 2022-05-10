@@ -46,8 +46,8 @@ def mse(pred, gt):
   bs = pred.shape[0]
   point_count = pred.shape[1]
   mse = tf.reduce_sum(tf.reduce_sum(tf.square(pred - gt), axis=2), axis=1) / point_count
-  loss = tf.reduce_sum(mse, axis=0) / bs 
-  return loss
+  # loss = tf.reduce_sum(mse, axis=0) / bs 
+  return mse
 
 _mse = mse
 
@@ -70,10 +70,19 @@ def LOSS_CAM(scale, gt_scale):
   # Applying L2 loss with batch sum reduction.
   return  _mse(scale, gt_scale)
 
+'''
+NO WAY I THINK THE REGRESSION IS WRONG :)))))))
+
+Like, there is this thing I do where we are like "We don't care about the regularization w.r.t 
+to the root rotation.
+
+'''
+
+
 # beta is a tensor with shape of [bs, 10]. These are the estimated beta parameters that get fed to MANO.
 # pose is a tensor with shape of [bs, 48]. These are the estimated pose parameters that get fed to MANO.
 def LOSS_REG(beta, pose, L, U):
-  # U and L are upper and lower limits for the alpha params (which are the things that get mapped into theta MANO params).
+  # U and L are upper and lower limits for the theta MANO params.
   # U and L are only shape R^45.
   pose = pose[ :, 3:]
   bs = pose.shape[0]
@@ -82,17 +91,17 @@ def LOSS_REG(beta, pose, L, U):
     tf.math.maximum(L - pose, tf.zeros(pose.shape)) + \
     tf.math.maximum(pose - U, tf.zeros(pose.shape)), axis=1
   )
-  loss = tf.reduce_sum(loss, axis=0) / bs
   return loss
 
 # Master loss function
 def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
   gt_prime = gt / gt_scale # Inverse scale transform.
-  return LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
-    LOSS_CAM(scale, gt_scale) + LOSS_REG(beta, pose, L, U)
+  return 1e2 * tf.reduce_mean(LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
+    LOSS_CAM(scale, gt_scale)) # + 1e-1 * LOSS_REG(beta, pose, L, U)) # 
 
+# input shape of arr1/arr2 is [bs, 21, 3]
 def distance(arr1, arr2):
   diff = tf.math.subtract(arr1, arr2)
   distance = tf.norm(diff, axis = 2)
-  distance = tf.squeeze(distance)
+  distance = tf.squeeze(distance) # output shape is [bs, 21]
   return distance
