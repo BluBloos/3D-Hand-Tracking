@@ -5,7 +5,7 @@ import tensorflow as tf
 import time
 
 from mobilehand import camera_extrinsic, distance
-from qmind_lib import download_image, y_train, y_test
+from qmind_lib import get_train_list
 
 # x and y should be standard lists!
 def get_auc(x, y):
@@ -17,44 +17,36 @@ def get_auc(x, y):
         result += delta_x * y[i] # rectangle @ bottom.
     return round(result, 3)    
 
-# TODO(Noah): Modify to account for new download_image.
+
 # evaluates the model on a specific set from the RHD dataset.
-def evaluate_model(model, train_list, set):
+def evaluate_model(model, tf_dataset):
     thresholds = [
-        tf.repeat(0.02,repeats = 21), tf.repeat(0.025,repeats = 21), tf.repeat(0.03,repeats = 21),
-        tf.repeat(0.035,repeats = 21), tf.repeat(0.04,repeats = 21), tf.repeat(0.045,repeats = 21),
-        tf.repeat(0.05,repeats = 21)
+        tf.constant([[0.02]]), tf.constant([[0.025]]), tf.constant([[0.03]]),
+        tf.constant([[0.035]]), tf.constant([[0.04]]), tf.constant([[0.045]]),
+        tf.constant([[0.05]])
     ]
+    for i in range(len(thresholds)):
+        thresholds[i] = tf.repeat(thresholds[i], repeats=21, axis=1)
     i = 0
     percentage = np.zeros((len(thresholds),))
     timings = []
     for threshold in thresholds:
-        count = 0                
-        for filename in train_list:
-            if filename.startswith('.'):
-                continue
-            print(filename)
-            index = int(filename[0:5])
-
-            annot_3D = y_train[index]
-            if set == "evaluation":
-                annot_3D = y_test[index]
-
-            image = download_image(set, index)
-            image = tf.expand_dims(image, axis = 0)
-
+        count = 0        
+        total_img = 0        
+        for img, label in tf_dataset:
             time_start = time.time()
-            beta, pose, mesh, keypoints, scale = model(image)
+            beta, pose, mesh, keypoints, scale = model(img)
             time_end = time.time()
             timings.append(time_end - time_start)
-
             keypoints = camera_extrinsic(scale, keypoints)
-            error = distance(keypoints, annot_3D)
-            
-            valid_count = tf.math.count_nonzero(tf.math.less_equal(error, threshold))
+            error = distance(keypoints, label)
+            bs = error.shape[0]
+            _threshold = tf.repeat(threshold, repeats=bs, axis=0)
+            valid_count = tf.math.count_nonzero(tf.math.less_equal(error, _threshold))
             count += valid_count.numpy()
+            total_img += bs
         
-        percentage[i] = count / (len(train_list) * 21)
+        percentage[i] = count / (total_img * 21)
         i += 1
     
     thresholds = tf.stack(thresholds)
