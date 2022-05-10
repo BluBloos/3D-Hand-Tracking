@@ -124,3 +124,4 @@ def render_checkpoint_image(ckpt_path, ckpt_index, model, eval_image, annot):
     fig.add_subplot(rows, columns, 2)
     plt.imshow( np.array(img1).astype(np.uint8) )
     plt.savefig(img_filepath)
+    plt.close()
