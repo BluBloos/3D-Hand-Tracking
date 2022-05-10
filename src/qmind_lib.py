@@ -118,6 +118,7 @@ def init(rhd_dir, batch_size, debug_mode=True):
   train_ds = tf.data.Dataset.list_files(
     os.path.join(rhd_dir, "training", "color", "*.png"), shuffle=False)
   train_ds = train_ds.shuffle(TRAIN_TOTAL_COUNT, reshuffle_each_iteration=False)
+  train_ds = train_ds.skip( min(2350, len(get_train_list())) )
   train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
   train_ds = configure_for_performance(train_ds)
 
