@@ -204,13 +204,18 @@ if __name__ == "__main__":
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
     # Add geometries to visualization
     vis.add_geometry(mesh_frame)
-    vis.add_geometry(line_set)
-    vis.add_geometry(mano_line_set)
+    #vis.add_geometry(line_set)
+    #vis.add_geometry(mano_line_set)
     vis.add_geometry(mesh)
+    
+    '''
     for i in range(21):
         vis.add_geometry(line_set_spheres[i])
         vis.add_geometry(mano_spheres[i])
+    '''
+
     vis.get_render_option().mesh_show_wireframe = True
+    vis.get_render_option().light_on = False
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

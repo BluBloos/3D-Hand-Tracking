@@ -98,7 +98,7 @@ def process_path(file_path):
   return img, label
 
 # this function must be called first thing when using qmind_lib
-def init(rhd_dir, batch_size, debug_mode=True):
+def init(rhd_dir, batch_size, img_count=TRAIN_TOTAL_COUNT):
   global rhd_root_dir
   global train_ds
   rhd_root_dir = rhd_dir
@@ -118,7 +118,8 @@ def init(rhd_dir, batch_size, debug_mode=True):
   train_ds = tf.data.Dataset.list_files(
     os.path.join(rhd_dir, "training", "color", "*.png"), shuffle=False)
   train_ds = train_ds.shuffle(TRAIN_TOTAL_COUNT, reshuffle_each_iteration=False)
-  train_ds = train_ds.skip( min(2350, len(get_train_list())) )
+  skip_count = len(get_train_list()) - min(img_count, len(get_train_list()) )
+  train_ds = train_ds.skip( skip_count )
   train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
   train_ds = configure_for_performance(train_ds)
 

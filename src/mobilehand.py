@@ -21,18 +21,20 @@ def camera_extrinsic(scale, points):
   return points
 
 class MobileHand(Model):
-  def __init__(self, image_size, image_channels, mano_dir, **kwargs):
+  def __init__(self, image_size, image_channels, mano_dir, T=3, **kwargs):
     super().__init__(**kwargs)
     self.image_size = image_size
     self.image_channels = image_channels
     self.mano_dir = mano_dir
     self.mobile_net = MobileNetV3Small(self.image_size, self.image_channels)
-    self.reg_module = IterativeRegression(59, 0.4, 3)
+    self.reg_module = IterativeRegression(59, 0.4, T)
     self.mano_model = MANO_Model(self.mano_dir)
-  def call(self, x, training=False):
+  def call(self, x, iter=2, training=False):
     bs = x.shape[0]
     m_output = self.mobile_net(x)
     reg_output = self.reg_module(m_output, training)
+    if training:
+      reg_output = reg_output[iter]
     beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.constant([ bs, 10 ]))
     pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ bs, 48 ]))
     scale = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ bs, 1 ]))  
@@ -97,7 +99,11 @@ def LOSS_REG(beta, pose, L, U):
 def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
   gt_prime = gt / gt_scale # Inverse scale transform.
   return 1e2 * tf.reduce_mean(LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
-    LOSS_CAM(scale, gt_scale)) # + 1e-1 * LOSS_REG(beta, pose, L, U)) # 
+    LOSS_CAM(scale, gt_scale) + LOSS_REG(beta, pose, L, U) ) # + 1e-1 * LOSS_REG(beta, pose, L, U)) # 
+
+def LOSS2(beta, pose, L, U):
+  return 1e2 * tf.reduce_mean(LOSS_REG(beta, pose, L, U))
+
 
 # input shape of arr1/arr2 is [bs, 21, 3]
 def distance(arr1, arr2):

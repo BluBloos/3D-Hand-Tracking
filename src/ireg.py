@@ -30,5 +30,5 @@ class IterativeRegression(Model):
       y_t += err
       # print(cstr("y_t"), y_t)
       y_vals.append(y_t)
-    return y_t
+    return y_t if not training else y_vals
 
