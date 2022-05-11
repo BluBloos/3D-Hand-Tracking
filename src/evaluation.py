@@ -11,8 +11,8 @@ from qmind_lib import get_train_list
 def get_auc(x, y):
     result = 0
     for i in range(len(x)-1):
-        delta_x = 1 / len(x)
-        delta_y = y[i+1] - y[i]
+        delta_x = (x[i+1] - x[i]) / 30
+        delta_y = y[i + 1] - y[i]
         result += 0.5 * delta_x * delta_y # add triangle area.
         result += delta_x * y[i] # rectangle @ bottom.
     return round(result, 3)    

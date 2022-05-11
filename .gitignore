@@ -12,4 +12,5 @@ checkpoints/
 checkpoints_old/
 checkpoints_oldv2/
 RHD_published_v2
+RHD_large
 env/
