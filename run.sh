@@ -1,1 +1,0 @@
-jupyter src/HandTracking.ipynb
