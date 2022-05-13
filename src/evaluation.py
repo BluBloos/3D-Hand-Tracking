@@ -52,9 +52,10 @@ def evaluate_model(model, tf_dataset):
     thresholds = tf.stack(thresholds)
     thresholds = thresholds[:, 0] * 1000
     
-    # compute the average model inference time
-    inference_time = np.sum(np.array(timings)) / len(timings)
-    print("inference_time", inference_time)
+    # Compute the average model inference time
+    inference_time = np.sum(np.array(timings)) / (len(timings))
+    print("average inference_time for one forward pass = {} s".format(round(inference_time, 3)))
+    print("theoretical FPS = {}".format(round(1 / inference_time, 3)))
 
     plt.figure(figsize=(10.0, 8.0))
     plt.grid()

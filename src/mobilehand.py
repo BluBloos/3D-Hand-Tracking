@@ -86,23 +86,37 @@ to the root rotation.
 def LOSS_REG(beta, pose, L, U):
   # U and L are upper and lower limits for the theta MANO params.
   # U and L are only shape R^45.
-  pose = pose[ :, 3:]
+  
   bs = pose.shape[0]
-  loss = tf.reduce_sum(tf.square(beta), axis=1)
-  loss += tf.reduce_sum(
+  point_count = pose.shape[1]
+  # shape of pose is [bs, 48]
+  pose = pose[ :, 3: ] # [bs, 45]
+  #pose = tf.reshape(pose, (bs, -1, 3)) # new shape is [bs, 15, 3]
+
+  L = tf.repeat(L, axis=0, repeats=bs) # [bs, 15, 3]
+  U = tf.repeat(U, axis=0, repeats=bs) # [bs, 15, 3]
+
+  # this is fine. 10 dimenionsal vector.
+  loss = tf.reduce_sum(tf.square(beta), axis=1) + tf.reduce_sum(tf.square(pose), axis=1)
+
+  '''loss += tf.reduce_sum(tf.reduce_sum(tf.square(
     tf.math.maximum(L - pose, tf.zeros(pose.shape)) + \
-    tf.math.maximum(pose - U, tf.zeros(pose.shape)), axis=1
-  )
+    tf.math.maximum(pose - U, tf.zeros(pose.shape))
+  ), axis=2), axis=1) / point_count
+  '''
+
   return loss
+
+alpha_reg = 1e-3
 
 # Master loss function
 def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
   gt_prime = gt / gt_scale # Inverse scale transform.
   return 1e2 * tf.reduce_mean(LOSS_2D(scale, pred, gt) + LOSS_3D(pred, gt_prime) + \
-    LOSS_CAM(scale, gt_scale) + LOSS_REG(beta, pose, L, U) ) # + 1e-1 * LOSS_REG(beta, pose, L, U)) # 
+    LOSS_CAM(scale, gt_scale) + alpha_reg * LOSS_REG(beta, pose, L, U) ) # + 1e-1 * LOSS_REG(beta, pose, L, U)) # 
 
 def LOSS2(beta, pose, L, U):
-  return 1e2 * tf.reduce_mean(LOSS_REG(beta, pose, L, U))
+  return 1e2 * tf.reduce_mean( alpha_reg * LOSS_REG(beta, pose, L, U))
 
 
 # input shape of arr1/arr2 is [bs, 21, 3]

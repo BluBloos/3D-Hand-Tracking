@@ -15,7 +15,7 @@ class MobileNetV3Small(Model):
     self.mobileNet = tf.keras.Model(inputs=mobileNet.input, 
       outputs=mobileNet.get_layer('global_average_pooling2d').output)
     self.f = Flatten()
-    self.mobileNet.summary()
+    # self.mobileNet.summary()
 
   def freeze(self):
     self.mobileNet.trainable = False

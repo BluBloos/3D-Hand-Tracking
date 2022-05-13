@@ -6,6 +6,7 @@ Features:
 - Annotation loading for data from the RHD dataset.
 '''
 
+from venv import create
 import numpy as np
 import os
 import time
@@ -30,6 +31,12 @@ class bcolors:
   ENDC = '\033[0m'
   BOLD = '\033[1m'
   UNDERLINE = '\033[4m'
+
+def set_color_normal():
+  print(bcolors.ENDC, end="")
+
+def set_color_cyan():
+  print(bcolors.OKCYAN, end="")
 
 # converts a string into a cyan colored string
 def cstr(str): 
@@ -97,10 +104,32 @@ def process_path(file_path):
   img = download_image(file_path)
   return img, label
 
-# this function must be called first thing when using qmind_lib
-def init(rhd_dir, batch_size, img_count=TRAIN_TOTAL_COUNT):
-  global rhd_root_dir
+def create_tf_dataset(img_dir, batch_size, img_count=-1):
+  
   global train_ds
+
+  def configure_for_performance(ds):
+    ds = ds.cache()
+    # this is quite a big buffer! Presumably this gives us perfect shuffling :)
+    ds = ds.shuffle(TRAIN_TOTAL_COUNT, reshuffle_each_iteration=False)
+    ds = ds.batch(batch_size)
+    ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+    return ds 
+  
+  total_count = len(os.listdir(img_dir))
+  if img_count == -1:
+    img_count = total_count
+
+  train_ds = tf.data.Dataset.list_files(
+    os.path.join(img_dir, "*.png"), shuffle=False)
+  skip_count = total_count - min(img_count, total_count)
+  train_ds = train_ds.skip(skip_count)
+  train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
+  train_ds = configure_for_performance(train_ds)
+
+# this function must be called first thing when using qmind_lib
+def init(rhd_dir, batch_size, img_count=-1):
+  global rhd_root_dir
   rhd_root_dir = rhd_dir
 
   np.set_printoptions(threshold=sys.maxsize)
@@ -108,20 +137,8 @@ def init(rhd_dir, batch_size, img_count=TRAIN_TOTAL_COUNT):
   anno_eval_path = os.path.join(rhd_dir, "anno", "anno_evaluation.pickle")
   load_anno_all(anno_train_path, anno_eval_path)
 
-  def configure_for_performance(ds):
-    ds = ds.cache()
-    ds = ds.batch(batch_size)
-    ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
-    return ds 
-
-  # create the tensorflow dataset.
-  train_ds = tf.data.Dataset.list_files(
-    os.path.join(rhd_dir, "training", "color", "*.png"), shuffle=False)
-  train_ds = train_ds.shuffle(TRAIN_TOTAL_COUNT, reshuffle_each_iteration=False)
-  skip_count = len(get_train_list()) - min(img_count, len(get_train_list()) )
-  train_ds = train_ds.skip( skip_count )
-  train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
-  train_ds = configure_for_performance(train_ds)
+  img_dir = os.path.join(rhd_root_dir, "training", "color")
+  create_tf_dataset(img_dir, batch_size, img_count)
 
 def visualize_ds():
   # gonna render for us a single batch! 
@@ -132,6 +149,7 @@ def visualize_ds():
     plt.imshow(image_batch[i].numpy().astype("uint8"))
     label = label_batch[i]
     plt.axis("off")
+  plt.show()
 
 def get_train_list():
   global rhd_root_dir

@@ -178,6 +178,8 @@ class MANO_Model(Model):
       ], 
       dtype=tf.int32
     )
+    
+    # tip to palm.
 
     # Indices and stored values are all RHD convention.
     self.RHD_K = tf.constant(
@@ -224,8 +226,13 @@ class MANO_Model(Model):
       [[-0.15,-1.60], [ 0.00, 0.00], [ 0.00, 0.50]], # PIP
       [[ 0.00, 0.00], [-0.50, 0.00], [-1.57, 1.08]]]) # DIP
 
-    self.L = tf.expand_dims(tf.reshape(plim[:, :, 0], shape=(45)), axis=0)
-    self.U = tf.expand_dims(tf.reshape(plim[:, :, 1], shape=(45)), axis=0)
+    # Like, maybe this does not reshape properly down...?
+
+    self.L = tf.expand_dims(plim[:, :, 0], axis=0) # [1, 15, 3]
+    self.U = tf.expand_dims(plim[:, :, 1], axis=0) # [1, 15, 3]
+
+    #self.L = tf.expand_dims(tf.reshape(plim[:, :, 0], shape=(45)), axis=0)
+    #self.U = tf.expand_dims(tf.reshape(, shape=(45)), axis=0)
 
     print('MANO Differentiable Layer Loaded')
 
