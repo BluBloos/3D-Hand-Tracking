@@ -161,7 +161,6 @@ def LOSS(beta, pose, L, U, scale, pred, gt, gt_scale):
 def LOSS2(beta, pose, L, U):
   return 1e2 * tf.reduce_mean( alpha_reg * LOSS_REG(beta, pose, L, U))
 
-
 # input shape of arr1/arr2 is [bs, 21, 3]
 def distance(arr1, arr2):
   diff = tf.math.subtract(arr1, arr2)

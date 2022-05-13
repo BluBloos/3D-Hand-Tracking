@@ -104,9 +104,8 @@ def process_path(file_path):
   img = download_image(file_path)
   return img, label
 
+# Used for both the training and the evaluation set.
 def create_tf_dataset(img_dir, batch_size, img_count=-1):
-  
-  global train_ds
 
   def configure_for_performance(ds):
     ds = ds.cache()
@@ -120,16 +119,19 @@ def create_tf_dataset(img_dir, batch_size, img_count=-1):
   if img_count == -1:
     img_count = total_count
 
-  train_ds = tf.data.Dataset.list_files(
+  new_ds = tf.data.Dataset.list_files(
     os.path.join(img_dir, "*.png"), shuffle=False)
   skip_count = total_count - min(img_count, total_count)
-  train_ds = train_ds.skip(skip_count)
-  train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
-  train_ds = configure_for_performance(train_ds)
+  new_ds = new_ds.skip(skip_count)
+  new_ds = new_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
+  new_ds = configure_for_performance(new_ds)
+  return new_ds
 
 # this function must be called first thing when using qmind_lib
 def init(rhd_dir, batch_size, img_count=-1):
   global rhd_root_dir
+  global train_ds
+  global eval_ds
   rhd_root_dir = rhd_dir
 
   np.set_printoptions(threshold=sys.maxsize)
@@ -138,7 +140,10 @@ def init(rhd_dir, batch_size, img_count=-1):
   load_anno_all(anno_train_path, anno_eval_path)
 
   img_dir = os.path.join(rhd_root_dir, "training", "color")
-  create_tf_dataset(img_dir, batch_size, img_count)
+  e_img_dir = os.path.join(rhd_root_dir, "evaluation", "color")
+  train_ds = create_tf_dataset(img_dir, batch_size, img_count)
+  # -1 for img_count loads ALL the data.
+  eval_ds = create_tf_dataset(e_img_dir, batch_size, -1)
 
 def visualize_ds():
   # gonna render for us a single batch! 
@@ -168,6 +173,7 @@ y2_test = np.zeros((EVALUATION_TOTAL_COUNT, 21, 2), dtype=np.float32)
 
 rhd_root_dir = None
 train_ds = None
+eval_ds = None
 
 def load_anno_all(anno_train_path, anno_eval_path):
   global y_train

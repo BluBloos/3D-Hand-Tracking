@@ -51,13 +51,8 @@ rhd_dir = os.path.join("..", "SH_RHD")
 img_count = 2350
 qmindlib.init(rhd_dir, BATCH_SIZE, img_count)
 print(cstr("Loading train_ds with {} many images".format(img_count)))
-y_train = qmindlib.y_train
-y_test = qmindlib.y_test
-k_train = qmindlib.k_train
-k_test = qmindlib.k_test
-y2_train = qmindlib.y2_train
-y2_test = qmindlib.y2_test
 train_ds = qmindlib.train_ds
+eval_ds = qmindlib.eval_ds
 MANO_DIR = os.path.join("..", "mano_v1_2")
 import mobilehand
 T = 3
@@ -78,9 +73,10 @@ def set_ckpt_state(ckpt):
     f.write(str(ckpt))
 
 def load_model_cpkt(ckpt):
-    checkpoint_path = os.path.join(checkpoint_dir, "cp-{:04d}.ckpt".format(ckpt))
-    model.load_weights(checkpoint_path)
-    print(cstr("Loaded model checkpoint {}".format(ckpt)))
+    if ckpt > 0:
+        checkpoint_path = os.path.join(checkpoint_dir, "cp-{:04d}.ckpt".format(ckpt))
+        model.load_weights(checkpoint_path)
+        print(cstr("Loaded model checkpoint {}".format(ckpt)))
 
 # Load in model checkpoint from the current state.
 ckpt = get_ckpt_state()
@@ -132,7 +128,7 @@ while (1):
             train_loop(epochs, lr)
     elif user_command == "eval" or user_command == "ev":
         launch_loader()    
-        evaluation.evaluate_model(model, train_ds)
+        evaluation.evaluate_model(model, eval_ds)
         stop_loader()
     elif user_command.startswith("lc"):
         ckpt_index = int(user_command[2:])
@@ -155,6 +151,7 @@ while (1):
         model = mobilehand.MobileHand(IMAGE_SIZE, IMAGE_CHANNELS, MANO_DIR, T=T)
         model.mobile_net.freeze()
         model.compile(optimizer="adam")
+        set_ckpt_state(0)
         stop_loader()
     elif user_command == "vis":
         pass
