@@ -9,7 +9,7 @@ def vertices2joints(vert, J_):
     return tf.einsum('bvt,jv->bjt', vert, J_)
 
 def transform_matrix(R, t):
-    bs = R.shape[0]
+    bs = tf.shape(R)[0]
     T = tf.concat([R,t], axis=2) # 3x4 (3 rows, 4 columns)
     row = tf.constant([[0,0,0,1]], dtype = tf.float32)
     row_batched = tf.repeat(tf.expand_dims(row, axis=0), repeats=[bs], axis=0)
@@ -17,7 +17,7 @@ def transform_matrix(R, t):
     return T
 
 def lbs(pose, J, K, W, T_shaped, B_p):
-    bs = pose.shape[0]
+    bs = tf.shape(pose)[0]
     J_rest = vertices2joints(T_shaped, J)
     rmats = rmatrix_from_pose(pose)
 
@@ -64,16 +64,16 @@ def lbs(pose, J, K, W, T_shaped, B_p):
     # NOTE(Noah): Maybe we want to change transform matrix to stop being so silly...?
     Gk_rest_inv = transform_matrix(tf.reshape(rmat_rest, [-1, 3, 3]), 
         -tf.reshape(joints, [-1,3,1]))
-    Gk_rest_inv = tf.reshape(Gk_rest_inv, ((-1, joints.shape[1], 4, 4)))
+    Gk_rest_inv = tf.reshape(Gk_rest_inv, ((-1, tf.shape(joints)[1], 4, 4)))
    
     Gk_prime = tf.matmul(Gk, Gk_rest_inv) 
 
     W_batched = tf.repeat(tf.expand_dims(W, axis=0), repeats=[bs], axis=0)
-    L = tf.matmul(W_batched, tf.reshape(Gk_prime, (bs, -1, 16)))
-    L = tf.reshape(L, (bs, -1, 4, 4))
+    L = tf.matmul(W_batched, tf.reshape(Gk_prime, [bs, -1, 16]))
+    L = tf.reshape(L, [bs, -1, 4, 4])
 
     _T = T_shaped + B_p
-    ones = tf.ones([bs, _T.shape[1], 1], dtype=tf.float32)
+    ones = tf.ones([bs, tf.shape(_T)[1], 1], dtype=tf.float32)
     _T_homo = tf.concat([_T, ones], axis=2)
     T_prime = tf.matmul(L, tf.expand_dims(_T_homo, axis=-1))
     mesh = T_prime[:, :, :3, 0]
@@ -88,9 +88,9 @@ def blend_shape(beta, S):
   return tf.einsum('bl,vtl->bvt', beta, S)
 
 def rodrigues(rvector):
-    batch_size = rvector.shape[0]
+    batch_size = tf.shape(rvector)[0]
     angle = tf.norm(rvector, axis = 1, keepdims= True)
-    value = tf.fill((batch_size,1), 1e-8)
+    value = tf.fill([batch_size,1], 1e-8)
     angle = tf.math.add(angle, value)
 
     sin = tf.expand_dims(tf.math.sin(angle), axis = 2)
@@ -99,22 +99,22 @@ def rodrigues(rvector):
     runit = rvector/angle
     
     kx, ky, kz = tf.split(runit, 3, axis = 1)
-    zero = tf.zeros((batch_size,1))
+    zero = tf.zeros([batch_size,1])
     K = tf.reshape(tf.concat([zero, -kz, ky, kz, zero, -kx, -ky, kx, zero], axis = 1),[batch_size, 3, 3])
     I = tf.eye(3, batch_shape = [batch_size])
     rotationMatrix = I + sin * K + (1 - cos) * tf.linalg.matmul(K, K) 
     return rotationMatrix
 
 def rmatrix_from_pose(pose):
-    batch_size = pose.shape[0]
-    return tf.reshape(rodrigues(tf.reshape(pose,(-1, 3))), (batch_size, -1, 3, 3))
+    batch_size = tf.shape(pose)[0]
+    return tf.reshape(rodrigues(tf.reshape(pose,(-1, 3))), [batch_size, -1, 3, 3])
 
 def blend_pose(pose, P):
-    batch_size = pose.shape[0]
+    batch_size = tf.shape(pose)[0]
     I = tf.eye(3)
     rotationMatrix = rmatrix_from_pose(pose)
-    pose_sum = tf.reshape(rotationMatrix[:, 1:, :, :]-I, (batch_size, -1))
-    blend_pose = tf.reshape(tf.linalg.matmul(pose_sum, tf.reshape(P, (135, -1))), (batch_size, -1, 3))
+    pose_sum = tf.reshape(rotationMatrix[:, 1:, :, :]-I, [batch_size, -1])
+    blend_pose = tf.reshape(tf.linalg.matmul(pose_sum, tf.reshape(P, (135, -1))), [batch_size, -1, 3])
     return blend_pose
 
 class MANO_Model(Model):

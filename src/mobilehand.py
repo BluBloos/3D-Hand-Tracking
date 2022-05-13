@@ -20,6 +20,20 @@ def camera_extrinsic(scale, points):
   points *= scale
   return points
 
+class StupidSimpleLossMetric():
+  def __init__(self):
+    self.losses = [] # empty python array
+    self.name = "StupidSimpleLossMetric" 
+  def __call__(self, loss):
+    self.losses.append(loss)
+  def result(self):
+    return sum(self.losses) / len(self.losses)
+  def reset_state(self):
+    self.losses = []
+
+#train_loss = StupidSimpleLossMetric()
+loss_tracker = tf.keras.metrics.Mean(name="loss")
+
 class MobileHand(Model):
   def __init__(self, image_size, image_channels, mano_dir, T=3, **kwargs):
     super().__init__(**kwargs)
@@ -27,27 +41,56 @@ class MobileHand(Model):
     self.image_channels = image_channels
     self.mano_dir = mano_dir
     self.mobile_net = MobileNetV3Small(self.image_size, self.image_channels)
+    self.T = T
     self.reg_module = IterativeRegression(59, 0.4, T)
     self.mano_model = MANO_Model(self.mano_dir)
+    self.U = self.mano_model.U
+    self.L = self.mano_model.L
+  
   def call(self, x, iter=2, training=False):
-    bs = x.shape[0]
+    bs = tf.shape(x)[0]
     m_output = self.mobile_net(x)
     reg_output = self.reg_module(m_output, training)
     if training:
       reg_output = reg_output[iter]
-    beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.constant([ bs, 10 ]))
-    pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.constant([ bs, 48 ]))
-    scale = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.constant([ bs, 1 ]))  
+    beta = tf.slice(reg_output, tf.constant([ 0, 0 ]), tf.stack([ bs, 10 ]))
+    pose = tf.slice(reg_output, tf.constant([ 0, 10 ]), tf.stack([ bs, 48 ]))
+    scale = tf.slice(reg_output, tf.constant([ 0, 58 ]), tf.stack([ bs, 1 ]))  
     scale = tf.expand_dims(scale, axis=1) # new shape is [bs, 1, 1]
     mano_mesh, mano_keypoints = self.mano_model(beta, pose, training)
     return (beta, pose, mano_mesh, mano_keypoints, scale)
 
+  def train_step(self, data):
+
+    input, gt = data 
+
+    for t in range(self.T):
+      with tf.GradientTape() as tape:
+        beta, pose, mesh, keypoints, scale = self.call(input, iter=t, training=True)
+        # This is the thing that takes our MANO template to the same shape as gt.
+        gt_scale = tf.sqrt(tf.reduce_sum(tf.square(gt[:, 0] - gt[:, 8]), axis=1, keepdims=True)) / 0.0906426
+        gt_scale = tf.expand_dims(gt_scale, axis=1) # should have shape = [bs, 1, 1]
+        # apply regularization to keep corrections having estimates be on the manifold of valid hands.
+        loss = LOSS(beta, pose, self.L, self.U, scale, keypoints, gt, gt_scale) if t == self.T - 1 else \
+          LOSS2(beta, pose, self.L, self.U)
+      trainable_vars = self.trainable_variables
+      gradients = tape.gradient(loss, trainable_vars)
+      self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+      
+
+    loss_tracker.update_state(loss)
+    return {'loss': loss_tracker.result()}
+  
+  @property
+  def metrics(self):
+    return [loss_tracker]
+
 # TODO: Rename this to L2.
 # works for [bs, point_count, 3]
 def mse(pred, gt):
-  bs = pred.shape[0]
-  point_count = pred.shape[1]
-  mse = tf.reduce_sum(tf.reduce_sum(tf.square(pred - gt), axis=2), axis=1) / point_count
+  bs = tf.shape(pred)[0]
+  point_count = tf.shape(pred)[1]
+  mse = tf.reduce_sum(tf.reduce_sum(tf.square(pred - gt), axis=2), axis=1) / tf.cast(point_count, dtype=tf.float32)
   # loss = tf.reduce_sum(mse, axis=0) / bs 
   return mse
 
@@ -87,8 +130,8 @@ def LOSS_REG(beta, pose, L, U):
   # U and L are upper and lower limits for the theta MANO params.
   # U and L are only shape R^45.
   
-  bs = pose.shape[0]
-  point_count = pose.shape[1]
+  bs = tf.shape(pose)[0]
+  point_count = tf.shape(pose)[1]
   # shape of pose is [bs, 48]
   pose = pose[ :, 3: ] # [bs, 45]
   #pose = tf.reshape(pose, (bs, -1, 3)) # new shape is [bs, 15, 3]

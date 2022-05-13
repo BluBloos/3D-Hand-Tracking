@@ -19,7 +19,7 @@ class IterativeRegression(Model):
     ]
   
   def call(self, features, training=False):
-    bs = features.shape[0] 
+    bs = tf.shape(features)[0] 
     y_t = tf.zeros((bs, self.MODEL_OUTPUTS))
     y_vals = []
     for t in range(self.T):
