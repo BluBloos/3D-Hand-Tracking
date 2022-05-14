@@ -48,9 +48,8 @@ import evaluation
 from qmind_lib import cstr, rstr, set_color_cyan, set_color_normal
 import qmind_lib as qmindlib
 rhd_dir = os.path.join("..", "SH_RHD")
-img_count = 2350
-qmindlib.init(rhd_dir, BATCH_SIZE, img_count)
-print(cstr("Loading train_ds with {} many images".format(img_count)))
+qmindlib.init(rhd_dir, BATCH_SIZE)
+# print(cstr("Loading train_ds with {} many images".format(img_count)))
 train_ds = qmindlib.train_ds
 eval_ds = qmindlib.eval_ds
 MANO_DIR = os.path.join("..", "mano_v1_2")
@@ -120,7 +119,7 @@ def train_loop(epochs, lr):
     cp_callback = MyCallback()
 
     # TODO(Noah): need to add the checkpoint saving.
-    model.fit(train_ds, epochs=EPOCHS, callbacks=[cp_callback])
+    model.fit(train_ds, epochs=EPOCHS, callbacks=[cp_callback], validation_data=eval_ds)
 
 
 while (1):

@@ -33,6 +33,7 @@ class StupidSimpleLossMetric():
 
 #train_loss = StupidSimpleLossMetric()
 loss_tracker = tf.keras.metrics.Mean(name="loss")
+eval_loss_tracker = tf.keras.metrics.Mean(name="eval_loss")
 
 class MobileHand(Model):
   def __init__(self, image_size, image_channels, mano_dir, T=3, **kwargs):
@@ -77,13 +78,24 @@ class MobileHand(Model):
       gradients = tape.gradient(loss, trainable_vars)
       self.optimizer.apply_gradients(zip(gradients, trainable_vars))
       
-
     loss_tracker.update_state(loss)
     return {'loss': loss_tracker.result()}
   
+  def test_step(self, data):
+    # Unpack the data
+    input, gt = data
+    beta, pose, mesh, keypoints, scale = self.call(input)
+    # This is the thing that takes our MANO template to the same shape as gt.
+    gt_scale = tf.sqrt(tf.reduce_sum(tf.square(gt[:, 0] - gt[:, 8]), axis=1, keepdims=True)) / 0.0906426
+    gt_scale = tf.expand_dims(gt_scale, axis=1) # should have shape = [bs, 1, 1]
+    # apply regularization to keep corrections having estimates be on the manifold of valid hands.
+    loss = LOSS(beta, pose, self.L, self.U, scale, keypoints, gt, gt_scale)
+    eval_loss_tracker.update_state(loss) 
+    return {"loss": eval_loss_tracker.result()}
+
   @property
   def metrics(self):
-    return [loss_tracker]
+    return [loss_tracker, eval_loss_tracker]
 
 # TODO: Rename this to L2.
 # works for [bs, point_count, 3]
