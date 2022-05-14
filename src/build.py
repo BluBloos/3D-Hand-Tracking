@@ -78,6 +78,11 @@ def load_model_cpkt(ckpt):
         model.load_weights(checkpoint_path)
         print(cstr("Loaded model checkpoint {}".format(ckpt)))
 
+def save_model_ckpt(ckpt):
+    checkpoint_path = os.path.join(checkpoint_dir, "cp-{:04d}.ckpt".format(ckpt))
+    model.save_weights(checkpoint_path)
+    print(cstr("Saved model checkpoint {}".format(ckpt)))
+
 # Load in model checkpoint from the current state.
 ckpt = get_ckpt_state()
 checkpoint_dir = os.path.join('../','checkpoints')
@@ -103,10 +108,19 @@ def train_loop(epochs, lr):
 
     EPOCHS = epochs
     model.optimizer.learning_rate = lr # should work? Hope so.
-    LAST_CHECKPOINT = get_ckpt_state()
+    LAST_CHECKPOINT = get_ckpt_state() + 1
+
+    class MyCallback(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            ckpt = LAST_CHECKPOINT + epoch
+            if (ckpt % 5 == 0):
+                save_model_ckpt(ckpt)
+                set_ckpt_state(ckpt)
+
+    cp_callback = MyCallback()
 
     # TODO(Noah): need to add the checkpoint saving.
-    model.fit(train_ds, epochs=EPOCHS)
+    model.fit(train_ds, epochs=EPOCHS, callbacks=[cp_callback])
 
 
 while (1):
