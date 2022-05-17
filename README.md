@@ -10,13 +10,13 @@ We built a Tensorflow model to predict the 3D shape and pose of a hand using jus
 
 Our model is capable of achieving an AUC score of 0.940 on the RHD dataset when evaluating on the training split. This of course means that our model overfits and does not generalize well to unseen examples.
 
-Pictured below are two figures that the team included in our paper submitted to the CUCAI 2022 proceedings. For our full paper, you can find this as a .docx in the paper sudirectory of this repo.
+Pictured below are two figures that the team included in our paper submitted to the CUCAI 2022 proceedings. For our full paper, you can find this as a pdf in the results sudirectory of this repo.
 
 <img width="500" alt="Picture2" src="https://user-images.githubusercontent.com/38915815/168714866-d535b2d0-ffe0-4e8b-8bbc-ddf34e810aff.png"> <img width="500" alt="Picture2" src="https://user-images.githubusercontent.com/38915815/168714691-737a8959-7437-4cbb-83c8-6a9a0667cbaf.png">
 
-The image on the right is the 3D PCK curve, which is where the AUC score comes from (area under the curve). The 3D PCK is the percentage of estimated hand keypoints that are within a specific error threshold to the ground truth keypoints, and the 3D PCK curve takes this metric across different error thresholds. 
+The image on the top is the 3D PCK curve, which is where the AUC score comes from (area under the curve). The 3D PCK is the percentage of estimated hand keypoints that are within a specific error threshold to the ground truth keypoints, and the 3D PCK curve takes this metric across different error thresholds. 
 
-The image on the left is a composite image of sample images chosen from the training split of the RHD dataset, and the associated predictions from our trained model.
+The image on the bottom is a composite image of sample images chosen from the training split of the RHD dataset, and the associated predictions from our trained model.
 
 ## Tensorflow implementation of Linear Blend Skinning 
 
