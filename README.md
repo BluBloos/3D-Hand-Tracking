@@ -8,7 +8,7 @@ We built a Tensorflow model to predict the 3D shape and pose of a hand using jus
 
 # Results
 
-Our model is capable of achieving an AUC score of 0.940 on the RHD dataset when evaluating on the training split. This of course means that our model overfits and does not generalize well to unseen examples.
+Our model is capable of achieving an AUC score of 0.940 on the RHD dataset when evaluating on the training split. Unfortunately, our model overfits and does not generalize well to unseen examples. Moving forward, we would iterate by exploring different datasets as well as data augmentation. 
 
 Pictured below are two figures that the team included in our paper submitted to the CUCAI 2022 proceedings. For our full paper, you can find this as a pdf in the results sudirectory of this repo.
 
